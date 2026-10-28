@@ -1,0 +1,24 @@
+services:
+  p1-checks:
+    image: maven:3.9.16-eclipse-temurin-21
+    working_dir: /workspace/backend
+    environment:
+      DATABASE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-assets_creation}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+      DATABASE_USERNAME: ${MYSQL_USER:-assets_app}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:-local-demo-password}
+      RUN_DATABASE_TESTS: "true"
+      TZ: UTC
+    volumes:
+      - ./backend:/workspace/backend:ro
+      - ./database:/workspace/database:ro
+      - ./demo-assets:/workspace/demo-assets:ro
+      - p1-maven-cache:/root/.m2
+      - p1-build-output:/build
+    entrypoint: ["sh", "./mvnw", "-B", "-ntp", "-Dbuild.output.directory=/build", "verify"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  p1-maven-cache:
+  p1-build-output:

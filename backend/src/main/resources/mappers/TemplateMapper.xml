@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sheepxj.assets.persistence.mapper.TemplateMapper">
+  <sql id="columns">id, title, category, category_title, description, cover_path, required_image_count, accepted_mime_types, max_file_size_bytes, result_path</sql>
+  <select id="findById" resultType="com.sheepxj.assets.persistence.model.TemplateRecord">
+    SELECT <include refid="columns"/> FROM templates WHERE id = #{id}
+  </select>
+  <select id="findAll" resultType="com.sheepxj.assets.persistence.model.TemplateRecord">
+    SELECT <include refid="columns"/> FROM templates
+    <if test="category != null">WHERE category = #{category}</if>
+    ORDER BY category, id
+  </select>
+  <select id="findCategories" resultType="com.sheepxj.assets.contract.ApiContracts$CategoryDto">
+    SELECT DISTINCT category AS id, category_title AS title FROM templates ORDER BY category
+  </select>
+</mapper>

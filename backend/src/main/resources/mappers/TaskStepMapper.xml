@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sheepxj.assets.persistence.mapper.TaskStepMapper">
+  <insert id="insert">
+    INSERT INTO task_steps (task_id, stage, status, started_at, finished_at, error_code, error_message)
+    VALUES (#{taskId}, #{stage}, #{status}, #{startedAt}, #{finishedAt}, #{errorCode}, #{errorMessage})
+  </insert>
+  <select id="findByTaskId" resultType="com.sheepxj.assets.persistence.model.TaskStepRecord">
+    SELECT task_id, stage, status, started_at, finished_at, error_code, error_message FROM task_steps
+    WHERE task_id = #{taskId} ORDER BY FIELD(stage, 'MATERIAL_CHECK', 'GENERATE', 'FINALIZE')
+  </select>
+  <update id="transition">
+    UPDATE task_steps SET status = #{step.status}, started_at = #{step.startedAt}, finished_at = #{step.finishedAt},
+      error_code = #{step.errorCode}, error_message = #{step.errorMessage}
+    WHERE task_id = #{step.taskId} AND stage = #{step.stage}
+      AND status IN ('PENDING', 'RUNNING') AND status = #{expectedStatus}
+  </update>
+</mapper>

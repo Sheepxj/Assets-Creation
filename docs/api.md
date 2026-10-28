@@ -4,7 +4,7 @@
 
 本文是 P0 固定的前后端契约。业务由 Java 提供，浏览器通过 Next.js 同源 `/api` 转发访问。
 
-P0 已提供健康检查、CSRF 获取、统一错误结构、基础认证边界，以及仅 `smoke` profile 可用的转发探针。P2 实现注册登录，P3 实现模板与素材，P4 实现任务。下文列出后续接口不表示它们已实现；P0 对尚未实现的受保护路径返回 401。
+P0 已提供健康检查、CSRF 获取、统一错误结构、基础认证边界，以及仅 `smoke` profile 可用的转发探针。P1 已提供数据库、模板／账号种子及本地图片，尚未开放业务 HTTP 接口。P2 实现注册登录，P3 实现模板与素材，P4 实现任务。下文列出后续接口不表示它们已实现；未实现的受保护路径仍返回 401。
 
 ## 2. 通用约定
 
@@ -70,14 +70,14 @@ UserDto：`{ "id": "user-id", "username": "demo_a" }`，不返回密码哈希。
 | GET /api/templates | 可选 category，使用分类 ID | 200，TemplateDto[] | P3 |
 | GET /api/templates/{id} | 模板 ID | 200，TemplateDto；不存在 404 | P3 |
 
-CategoryDto：`{ "id": "creative", "title": "创意图片" }`。
+CategoryDto：`{ "id": "travel", "title": "旅行风景" }`。
 
 ```json
 {
-  "id": "demo-postcard",
+  "id": "travel-postcard",
   "title": "旅行明信片",
-  "category": "creative",
-  "coverUrl": "/api/demo/postcard-cover.jpg",
+  "category": "travel",
+  "coverUrl": "/api/demo/covers/travel-postcard.jpg",
   "description": "上传两张图片，模拟生成一张明信片",
   "requiredImageCount": 2,
   "acceptedMimeTypes": ["image/jpeg", "image/png"],
@@ -85,7 +85,7 @@ CategoryDto：`{ "id": "creative", "title": "创意图片" }`。
 }
 ```
 
-以上为 TemplateDto 示例。封面通过公开受控路径读取，种子素材在 P1 准备。未知分类返回 `[]`；请求失败与空列表区分。不提供模板 CRUD。
+以上为使用 P1 实际种子 ID 的 TemplateDto 示例。封面通过公开受控路径读取，HTTP 接口在 P3 提供。未知分类返回 `[]`；请求失败与空列表区分。不提供模板 CRUD。
 
 ## 5. 素材
 
@@ -120,7 +120,7 @@ CreateTaskRequest：
 
 ```json
 {
-  "templateId": "demo-postcard",
+  "templateId": "travel-postcard",
   "assetIds": ["asset-first", "asset-second"],
   "requestId": "72c878cf-a8b2-47c3-b115-673efff3f568"
 }
@@ -133,7 +133,7 @@ TaskDto：
 ```json
 {
   "id": "task-id",
-  "templateId": "demo-postcard",
+  "templateId": "travel-postcard",
   "templateTitle": "旅行明信片",
   "status": "RUNNING",
   "currentStage": "GENERATE",

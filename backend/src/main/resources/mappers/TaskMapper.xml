@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sheepxj.assets.persistence.mapper.TaskMapper">
+  <insert id="insert">
+    INSERT INTO tasks (id, user_id, template_id, template_title, request_id, request_fingerprint, status,
+      current_stage, simulation_config_json, created_at, started_at, finished_at, result_path, error_code, error_message)
+    VALUES (#{id}, #{userId}, #{templateId}, #{templateTitle}, #{requestId}, #{requestFingerprint}, #{status},
+      #{currentStage}, #{simulationConfigJson}, #{createdAt}, #{startedAt}, #{finishedAt}, #{resultPath}, #{errorCode}, #{errorMessage})
+  </insert>
+  <select id="findById" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE id = #{id}</select>
+  <select id="findByIdAndUserId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE id = #{id} AND user_id = #{userId}</select>
+  <select id="findByRequestId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE user_id = #{userId} AND request_id = #{requestId}</select>
+  <select id="findOldestQueued" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE status = 'QUEUED' ORDER BY created_at, id LIMIT 1</select>
+  <sql id="userFilter">user_id = #{userId}<if test="status != null"> AND status = #{status}</if></sql>
+  <select id="findByUserId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">
+    SELECT * FROM tasks WHERE <include refid="userFilter"/> ORDER BY created_at DESC, id DESC LIMIT #{limit} OFFSET #{offset}
+  </select>
+  <select id="countByUserId" resultType="long">SELECT COUNT(*) FROM tasks WHERE <include refid="userFilter"/></select>
+  <select id="findActiveByUserId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">
+    SELECT * FROM tasks WHERE user_id = #{userId} AND status IN ('QUEUED', 'RUNNING') ORDER BY created_at, id
+  </select>
+  <update id="transition">
+    UPDATE tasks SET status = #{task.status}, current_stage = #{task.currentStage}, started_at = #{task.startedAt},
+      finished_at = #{task.finishedAt}, result_path = #{task.resultPath}, error_code = #{task.errorCode}, error_message = #{task.errorMessage}
+    WHERE id = #{task.id} AND status IN ('QUEUED', 'RUNNING')
+      AND status = #{expectedStatus} AND current_stage &lt;=&gt; #{expectedStage,jdbcType=VARCHAR}
+  </update>
+</mapper>

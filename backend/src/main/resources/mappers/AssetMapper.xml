@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sheepxj.assets.persistence.mapper.AssetMapper">
+  <insert id="insert">
+    INSERT INTO assets (id, user_id, original_filename, mime_type, size_bytes, storage_path, created_at)
+    VALUES (#{id}, #{userId}, #{originalFilename}, #{mimeType}, #{sizeBytes}, #{storagePath}, #{createdAt})
+  </insert>
+  <select id="findByIdAndUserId" resultType="com.sheepxj.assets.persistence.model.AssetRecord">
+    SELECT * FROM assets WHERE id = #{id} AND user_id = #{userId}
+  </select>
+  <select id="findByIdsAndUserId" resultType="com.sheepxj.assets.persistence.model.AssetRecord">
+    SELECT * FROM assets WHERE user_id = #{userId}
+    <choose>
+      <when test="ids != null and !ids.isEmpty()">AND id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach></when>
+      <otherwise>AND 1 = 0</otherwise>
+    </choose>
+    ORDER BY id
+  </select>
+</mapper>

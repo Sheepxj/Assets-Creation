@@ -19,6 +19,13 @@ spring:
     hikari:
       connection-timeout: 5000
       initialization-fail-timeout: 30000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:database/schema.sql
+      data-locations: classpath:database/seed.sql
+      encoding: UTF-8
+      continue-on-error: false
   servlet:
     multipart:
       max-file-size: 5MB
@@ -29,8 +36,11 @@ spring:
     timeout-per-shutdown-phase: 20s
 
 mybatis:
+  mapper-locations: classpath:mappers/*.xml
+  type-handlers-package: com.sheepxj.assets.persistence.typehandler
   configuration:
     map-underscore-to-camel-case: true
+    arg-name-based-constructor-auto-mapping: true
 
 app:
   storage-root: ${STORAGE_ROOT:./.data}
