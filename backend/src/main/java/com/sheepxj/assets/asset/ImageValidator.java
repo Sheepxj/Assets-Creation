@@ -3,12 +3,15 @@ package com.sheepxj.assets.asset;
 import com.sheepxj.assets.common.ApiException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.io.InputStreamSource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -24,17 +27,26 @@ public class ImageValidator {
 
     public ValidatedImage validate(MultipartFile file) {
         if (file == null || file.isEmpty()) throw invalid(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "请选择一张非空图片");
-        if (file.getSize() > MAX_FILE_SIZE) throw tooLarge();
+        return validate(file.getSize(), file.getContentType(), file.getOriginalFilename(), file::getInputStream);
+    }
+
+    public ValidatedImage validateStored(Path path, String mimeType, String filename) throws IOException {
+        return validate(Files.size(path), mimeType, filename, () -> Files.newInputStream(path));
+    }
+
+    private ValidatedImage validate(long size, String contentType, String filename, InputStreamSource source) {
+        if (size == 0) throw invalid(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "请选择一张非空图片");
+        if (size > MAX_FILE_SIZE) throw tooLarge();
         String claimed;
         try {
-            var type = MediaType.parseMediaType(file.getContentType() == null ? "application/octet-stream" : file.getContentType());
+            var type = MediaType.parseMediaType(contentType == null ? "application/octet-stream" : contentType);
             claimed = (type.getType() + "/" + type.getSubtype()).toLowerCase(Locale.ROOT);
         } catch (IllegalArgumentException exception) {
             throw unsupported();
         }
         if (!claimed.equals("image/jpeg") && !claimed.equals("image/png")) throw unsupported();
         byte[] bytes;
-        try (var input = file.getInputStream()) { bytes = input.readNBytes(MAX_FILE_SIZE + 1); }
+        try (var input = source.getInputStream()) { bytes = input.readNBytes(MAX_FILE_SIZE + 1); }
         catch (IOException exception) { throw invalid(HttpStatus.BAD_REQUEST, "UPLOAD_UNREADABLE", "无法读取上传文件，请重新上传"); }
         if (bytes.length > MAX_FILE_SIZE) throw tooLarge();
         if (bytes.length == 0) throw invalid(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "请选择一张非空图片");
@@ -57,7 +69,7 @@ public class ImageValidator {
             } finally { reader.dispose(); }
         } catch (IOException | IllegalArgumentException exception) { throw damaged(); }
         String extension = actual.equals("image/png") ? "png" : "jpg";
-        String original = StringUtils.getFilename(file.getOriginalFilename() == null ? "" : file.getOriginalFilename().replace('\\', '/'));
+        String original = StringUtils.getFilename(filename == null ? "" : filename.replace('\\', '/'));
         if (original == null || original.isBlank()) original = "image." + extension;
         if (original.codePointCount(0, original.length()) > 255 || original.codePoints().anyMatch(Character::isISOControl)) {
             throw invalid(HttpStatus.BAD_REQUEST, "INVALID_FILENAME", "文件名不合法或超过 255 个字符，请重命名后上传");

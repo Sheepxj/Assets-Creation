@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0～P3 已完成：基础工程、接口契约、同源转发、容器入口、数据素材、MyBatis、注册登录、模板接口、真实图片上传与本人预览。任务执行和正式前端页面按后续阶段实施。
+P0～P4 已完成：基础工程、数据素材、注册登录、模板、真实图片上传，以及 MySQL 排队、三步异步制作、个人历史／状态、结果预览和重启处理。Java API 已形成制作闭环；正式前端页面按 P5～P6 实施。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3 验证记录](docs/p3-verification.md)。后续功能说明和接口是开发约定，不冒充已交付功能。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 验证记录](docs/p4-verification.md)。后续页面功能仍是开发约定，不冒充已交付。
 
 ## 技术版本
 
@@ -29,16 +29,17 @@ P0～P3 已完成：基础工程、接口契约、同源转发、容器入口、
 
 ```text
 frontend/           App Router、Java 同源转发、TypeScript DTO、样式及测试配置
-backend/            认证、模板／素材 API、存储／归属、DTO、MyBatis 和测试
+backend/            认证、模板／素材／任务 API、三步执行／恢复、存储、MyBatis 和测试
 database/           六表结构、幂等种子、只读检查和专用重建验证 SQL
 demo-assets/        6 张封面、6 张模拟结果、3 张上传示例及来源／哈希清单
-scripts/            容器内 P0／P2／P3 HTTP 集成检查
+scripts/            容器内 P0／P2／P3／P4 HTTP 集成检查
 docs/               API、参考图、阶段验证、设计和开发计划
 compose.yaml        正常运行的 Next.js、Java、MySQL 三服务
 compose.smoke.yaml  P0 smoke profile 与检查容器
 compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
 compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 compose.p3.yaml     P3 实际上传与保留卷重建检查
+compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -79,10 +80,10 @@ docker compose down
 | SESSION_TIMEOUT | 30m | 会话空闲超时 |
 | SESSION_COOKIE_SECURE | false | 本地 HTTP；HTTPS 设为 true |
 | PROXY_TIMEOUT_MS | 10000 | 单个 Java 请求超时，不是制作耗时 |
-| SIM_CHECK_DELAY_MS | 2000 | 素材检查耗时，P4 启用并校验 |
-| SIM_GENERATE_DELAY_MS | 8000 | 模拟生成耗时，P4 启用并校验 |
-| SIM_FINALIZE_DELAY_MS | 2000 | 结果整理耗时，P4 启用并校验 |
-| SIM_FAIL_STAGE | NONE | NONE／MATERIAL_CHECK／GENERATE／FINALIZE，P4 启用 |
+| SIM_CHECK_DELAY_MS | 2000 | 素材检查耗时，非负毫秒 |
+| SIM_GENERATE_DELAY_MS | 8000 | 模拟生成耗时，非负毫秒 |
+| SIM_FINALIZE_DELAY_MS | 2000 | 结果整理耗时，非负毫秒 |
+| SIM_FAIL_STAGE | NONE | NONE／MATERIAL_CHECK／GENERATE／FINALIZE，非法值阻止启动 |
 | SPRING_PROFILES_ACTIVE | 空 | 默认无 smoke 探针，转发验证时使用 smoke |
 
 数据库使用 utf8mb4 和 UTC。演示内网 JDBC 不使用 TLS，真实远程数据库应另行配置。已有卷不会因修改初始化环境密码自动修改账户。Java 使用 `CREATE TABLE IF NOT EXISTS` 和不覆盖已有行的种子写入；修改 schema.sql 不会自动迁移已有表，不需要也不应为升级删除用户数据卷。
@@ -135,9 +136,9 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-P1 阶段 21 项、P2 阶段 41 项通过。P3 后当前完整组为 **62 项全部通过，0 失败、0 错误、0 跳过**；新增图片校验、存储故障清理、模板及素材 HTTP 集成，原有认证与持久层回归仍通过。
+P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项通过。P4 当前完整组为 **91 项全部通过，0 失败、0 错误、0 跳过**；新增步骤顺序／中断、事务回滚、并发幂等、历史及恢复验证，原有回归仍通过。
 
-普通镜像构建没有运行中的数据库，当前会明确跳过 38 项数据库／认证／素材集成测试、执行其余 24 项；使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组。不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 现在运行全部后端测试，不限于历史 P1 用例。
+普通镜像构建没有运行中的数据库，执行 35 项、报告跳过 54 项；被禁用的参数化集成测试按方法计数，完整启用后总数是 91。使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组，不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
 
 已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
 
@@ -149,7 +150,7 @@ Java 已提供注册、登录、当前用户和退出接口；注册成功自动
 
 Session Cookie 为 HttpOnly／SameSite=Lax，登录轮换 ID；30 分钟空闲过期，仅在 Java 内存，重启后重新登录。已实测会话配置 1800 秒、退出撤销、旧 Cookie 失效及重启后账号仍能重新登录。认证主体只含用户身份，另保存普通权限及 CSRF Token，不含密码／哈希。
 
-本轮通过 **41 项后端测试、10 项 Next.js→Java HTTP 检查和2项重启检查**。包括并发重名、Unicode 密码边界、CSRF、账号切换、用户隔离和显式认证上下文保存。
+P2 阶段通过 **41 项后端测试、10 项 Next.js→Java HTTP 检查和2项重启检查**。包括并发重名、Unicode 密码边界、CSRF、账号切换、用户隔离和显式认证上下文保存。
 
 复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。登录／注册页面属于 P5，当前完成的是后端 API。
 
@@ -167,13 +168,25 @@ P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤�
 
 请求、响应、枚举、空值、分页、认证和错误见 [API 契约](docs/api.md)。Java `ApiContracts.java` 与前端 `contracts.ts` 保存一致字段。
 
-当前公开健康、CSRF、注册登录和模板／封面 GET；上传和本人预览已实现并要求身份，制作资源在 P4 实现。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF。CurrentUser／OwnedResources 只信任服务端身份，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
+当前公开健康、CSRF、注册登录和模板／封面 GET；上传、任务、历史和本人图片要求身份。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF；归属来自服务端会话，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
+
+## P4 制作、模拟与重启
+
+提交后短事务创建 QUEUED 任务、三步记录、有序素材关联及配置快照，返回 202；同用户同 requestId 幂等，相同键不同模板／素材顺序为 409。单后台执行器按 MySQL 创建顺序领取，依次执行素材检查 → 模拟生成 → 结果整理。各阶段持久化状态、时间和原因，延迟／文件操作在事务外；最后步骤与任务成功同事务提交。
+
+`GET /api/tasks` 提供本人分页历史和状态筛选；`/api/tasks/active` 返回全部未结束任务；`/api/tasks/{id}` 提供三个步骤；`/result` 仅允许本人成功任务读取。查询不执行制作，关闭客户端也不取消任务。结果为仓库预置模拟图片的任务专属副本。
+
+成功默认使用 NONE 与 2000／8000／2000 毫秒。指定失败设置 SIM_FAIL_STAGE 为三个阶段之一，调整相应 SIM_*_DELAY_MS 后重建后端，再重新登录并创建新任务。先等已有任务结束再切换；后续环境变化不改变旧排队任务的配置。
+
+正常关闭先停止领取、允许当前任务在窗口内完成；要完整观察可用 `docker compose stop -t 25 backend`。启动时遗留 RUNNING 与执行中步骤变成 FAILED／SERVICE_RESTARTED，原因“服务重启导致制作中断”；QUEUED 继续、终态不变。不续跑执行中任务，不支持多后端共同消费。
+
+本轮通过 91 项后端测试、7 项成功链路 HTTP 检查、三个指定失败、强制中断恢复、正常关闭 SQL 证据及重启后结果哈希检查。完整复现与边界见[任务说明](docs/tasks.md)，逐项结果见[P4 验证记录](docs/p4-verification.md)。
 
 ## 后续阶段与边界
 
-- P1 数据、P2 认证、P3 模板与上传后端均已完成；尚未形成制作业务闭环。
-- 下一阶段 P4 排队及三步；P5～P6 正式页面、历史及轮询；P7～P9 核心回归、CI 和交付。
-- P0 探针不落盘、不执行制作，不可替代真实业务闭环；P1 证明数据库初始化不重置数据，运行中任务中断处理仍由 P4 实现。
+- P1～P4 后端业务已完成，M1（只通过 API 完成制作）已达成；前端业务页面仍未完成。
+- 下一阶段 P5 页面及提交、P6 多任务／历史／轮询；P7～P9 集中回归、CI 和交付。
+- P0 探针不替代真实业务闭环；重启中断已由 P4 实测，不支持执行中自动续跑。
 - 首页为工程入口；已核实[参考布局](docs/reference-ui.md)，正式页面后续实施。
 
 ## 基本部署与回滚

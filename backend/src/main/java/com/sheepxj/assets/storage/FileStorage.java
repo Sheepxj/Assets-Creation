@@ -23,6 +23,7 @@ public class FileStorage {
         try {
             root = Files.createDirectories(Path.of(configuredRoot).toAbsolutePath().normalize()).toRealPath();
             Files.createDirectories(root.resolve("uploads"));
+            Files.createDirectories(root.resolve("results"));
             Files.createDirectories(root.resolve(".tmp"));
             Path probe = Files.createTempFile(root, ".write-probe-", ".tmp");
             Files.delete(probe);
@@ -30,11 +31,19 @@ public class FileStorage {
     }
 
     public String store(String userId, String assetId, String extension, byte[] bytes) {
+        return write("uploads", userId, assetId, extension, bytes);
+    }
+
+    public String storeResult(String userId, String taskId, String extension, byte[] bytes) {
+        return write("results", userId, taskId, extension, bytes);
+    }
+
+    private String write(String directory, String userId, String assetId, String extension, byte[] bytes) {
         UUID.fromString(userId); UUID.fromString(assetId);
         if (!extension.equals("jpg") && !extension.equals("png")) throw new IllegalArgumentException("Unsupported storage extension");
         Path temporary = null;
         try {
-            String relative = "uploads/" + userId + "/" + assetId + "." + extension;
+            String relative = directory + "/" + userId + "/" + assetId + "." + extension;
             Path destination = resolve(relative);
             Path parent = Files.createDirectories(destination.getParent()).toRealPath();
             if (!parent.startsWith(root)) throw new IOException("Asset directory escaped storage root");

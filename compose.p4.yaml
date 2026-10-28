@@ -1,0 +1,18 @@
+services:
+  p4-http-checks:
+    image: node:22.23.4-bookworm-slim
+    environment:
+      BASE_URL: http://frontend:3000
+      P4_EVIDENCE_FILE: /evidence/p4-tasks.json
+      SIM_CHECK_DELAY_MS: ${SIM_CHECK_DELAY_MS:-2000}
+      SIM_GENERATE_DELAY_MS: ${SIM_GENERATE_DELAY_MS:-8000}
+      SIM_FINALIZE_DELAY_MS: ${SIM_FINALIZE_DELAY_MS:-2000}
+      SIM_FAIL_STAGE: ${SIM_FAIL_STAGE:-NONE}
+    volumes:
+      - ./scripts:/checks:ro
+      - ./demo-assets:/demo:ro
+      - ./.local:/evidence
+    command: ["node", "/checks/smoke-p4.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy

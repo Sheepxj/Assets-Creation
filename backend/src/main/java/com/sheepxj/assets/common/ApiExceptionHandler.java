@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -40,6 +41,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> handleUnreadableJson(HttpMessageNotReadableException exception) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_JSON", "请求 JSON 格式不正确", Map.of()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> handleParameterType(MethodArgumentTypeMismatchException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("INVALID_PARAMETER", "请求参数格式不正确", Map.of(exception.getName(), "参数类型或枚举值不正确")));
     }
 
     @ExceptionHandler(Exception.class)

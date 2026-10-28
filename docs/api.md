@@ -4,7 +4,7 @@
 
 本文是 P0 固定的前后端契约。业务由 Java 提供，浏览器通过 Next.js 同源 `/api` 转发访问。
 
-P0～P3 已实现基础工程、数据素材、注册登录、模板分类／列表／详情、封面、素材上传及本人预览。制作接口在 P4 实施，当前尚未实现。认证用法见[认证说明](authentication.md)，图片限制及存储行为见[上传说明](uploads.md)；正式前端页面在 P5～P6 实施。
+P0～P4 已实现基础工程、数据素材、注册登录、模板、上传、异步制作、任务查询及本人结果预览。认证用法见[认证说明](authentication.md)，图片限制及存储见[上传说明](uploads.md)，后台行为及模拟／重启演示见[任务说明](tasks.md)。正式前端页面在 P5～P6 实施。
 
 ## 2. 通用约定
 
@@ -123,7 +123,7 @@ CategoryDto：`{ "id": "travel", "title": "旅行风景" }`。
 
 素材不存在、非本人或文件缺失统一 404／RESOURCE_NOT_FOUND；未登录 401，CSRF 缺失／错误 403。预览返回实际 Content-Type、生成文件名的 inline Content-Disposition、nosniff、no-store。完整文件写入后才创建数据库记录，普通数据库失败会清理文件；文件与数据库事务的崩溃边界见[上传说明](uploads.md)。
 
-不提供删除接口；替换／移除只更新当前表单引用，不删除服务端旧文件。P4 创建任务时再次校验全部素材和模板要求，P5 负责上传位交互及客户端提示。
+不提供删除接口；替换／移除只更新当前表单引用，不删除服务端旧文件。P4 已在受理和素材检查阶段重新验证素材和模板要求，P5 负责上传位交互及客户端提示。
 
 ## 6. 任务
 
@@ -146,6 +146,10 @@ CreateTaskRequest：
 ```
 
 assetIds 按上传位排列且不能重复。校验数量、类型、大小、归属与文件可用性。同用户、同 requestId、同模板及有序素材返回原任务；同键不同内容 409。请求结果未知时重试复用键，明确新制作或修改素材时使用新键；重试不重新执行失败任务。
+
+以上任务接口均已实现。受理成功为 202，执行独立于 HTTP 请求；响应可能已经 RUNNING，也可在幂等重试时返回原终态。requestId 必须是标准 UUID，服务端规范为小写；仅该字段是幂等键，userId／模拟参数等额外字段不能覆盖服务端值。
+
+输入结构错误为 400／VALIDATION_ERROR；数量、重复素材或模板限制不符为 400／INVALID_ASSETS；模板不存在为 404／TEMPLATE_NOT_FOUND；素材不存在或非本人为 404／RESOURCE_NOT_FOUND；真实内容复验的错误沿用上传错误码。同键不同内容为 409／IDEMPOTENCY_CONFLICT。page／pageSize 越界为 400／INVALID_PAGINATION，参数类型或状态枚举非法为 400／INVALID_PARAMETER。文件不存在、未成功或非本人任务结果均为 404。结果使用实际 PNG／JPEG 类型、inline、nosniff、no-store。
 
 TaskDto：
 
@@ -185,7 +189,7 @@ TaskDto：
 - active 只发现未完成 ID；消失不代表成功，必须读取详情终态。查询不推进阶段。
 - 结果未就绪或文件不存在返回 404；不暴露未完成文件。
 
-模拟快照在后端保存，不由普通用户传入，不混入模板字段，P4 实现。
+模拟快照已由 Java 保存，不由普通用户传入，不混入模板字段。执行失败码包括 SIMULATED_FAILURE、MATERIAL_CHECK_FAILED、GENERATE_FAILED、FINALIZE_FAILED、STATE_PERSISTENCE_FAILED、SERVICE_RESTARTED；通过成功的 GET 响应读取 TaskDto 的 errorCode／errorMessage，而非将其变成 HTTP 500。对应步骤保存相同原因，后续步骤保持 PENDING。
 
 ## 7. P0 专用转发验证
 

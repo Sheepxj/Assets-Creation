@@ -14,6 +14,7 @@ public interface TaskMapper {
     TaskRecord findByIdAndUserId(@Param("id") String id, @Param("userId") String userId);
     TaskRecord findByRequestId(@Param("userId") String userId, @Param("requestId") String requestId);
     TaskRecord findOldestQueued();
+    List<TaskRecord> findRunning();
     List<TaskRecord> findByUserId(@Param("userId") String userId, @Param("status") TaskStatus status,
             @Param("limit") int limit, @Param("offset") long offset);
     long countByUserId(@Param("userId") String userId, @Param("status") TaskStatus status);

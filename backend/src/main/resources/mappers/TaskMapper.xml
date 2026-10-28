@@ -11,6 +11,7 @@
   <select id="findByIdAndUserId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE id = #{id} AND user_id = #{userId}</select>
   <select id="findByRequestId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE user_id = #{userId} AND request_id = #{requestId}</select>
   <select id="findOldestQueued" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE status = 'QUEUED' ORDER BY created_at, id LIMIT 1</select>
+  <select id="findRunning" resultType="com.sheepxj.assets.persistence.model.TaskRecord">SELECT * FROM tasks WHERE status = 'RUNNING' ORDER BY created_at, id</select>
   <sql id="userFilter">user_id = #{userId}<if test="status != null"> AND status = #{status}</if></sql>
   <select id="findByUserId" resultType="com.sheepxj.assets.persistence.model.TaskRecord">
     SELECT * FROM tasks WHERE <include refid="userFilter"/> ORDER BY created_at DESC, id DESC LIMIT #{limit} OFFSET #{offset}
