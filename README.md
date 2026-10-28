@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0、P1 已完成：基础工程、接口契约、同源转发、容器入口、六类业务表、种子数据、本地示例素材和 MyBatis 持久层。注册登录、模板 HTTP API、上传落盘及任务执行属于后续阶段；初始化账号不代表登录接口已完成。
+P0～P2 已完成：基础工程、接口契约、同源转发、容器入口、数据素材、MyBatis、注册登录后端及资源归属入口。模板／素材 HTTP API、任务执行和正式前端页面按后续阶段实施。
 
-逐项结果见 [P0 验证记录](docs/p0-verification.md)与 [P1 验证记录](docs/p1-verification.md)。后续功能说明和接口是开发约定，不冒充已交付功能。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2 验证记录](docs/p2-verification.md)。后续功能说明和接口是开发约定，不冒充已交付功能。
 
 ## 技术版本
 
@@ -29,7 +29,7 @@ P0、P1 已完成：基础工程、接口契约、同源转发、容器入口、
 
 ```text
 frontend/           App Router、Java 同源转发、TypeScript DTO、样式及测试配置
-backend/            Java API、安全基础、DTO、MyBatis 实体／Mapper 和测试
+backend/            注册登录 API、会话／CSRF／归属、DTO、MyBatis 和测试
 database/           六表结构、幂等种子、只读检查和专用重建验证 SQL
 demo-assets/        6 张封面、6 张模拟结果、3 张上传示例及来源／哈希清单
 scripts/            容器内 P0 HTTP 集成检查
@@ -37,6 +37,7 @@ docs/               API、参考图、阶段验证、设计和开发计划
 compose.yaml        正常运行的 Next.js、Java、MySQL 三服务
 compose.smoke.yaml  P0 smoke profile 与检查容器
 compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
+compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -121,7 +122,7 @@ P0 仅配置前端测试工具，业务测试在 P5～P7 添加，不宣称 `npm
 
 六张表为 users、templates、assets、tasks、task_assets、task_steps。已有 P0 数据卷可直接升级，空库也会自动初始化。提供三个分类、每类两个模板，覆盖 1／2／3 张图片要求；全部接受 JPEG／PNG、单张 5 MiB。
 
-本地演示账号：`demo_a`、`demo_b`，口令均为 `Demo123456!`。数据库保存不同随机盐的 BCrypt cost 10 哈希，已验证真实匹配；账号目前仅初始化，P2 才实现登录与注册 API。
+本地演示账号：`demo_a`、`demo_b`，口令均为 `Demo123456!`。数据库保存不同随机盐的 BCrypt cost 10 哈希；P2 已支持这两个账号登录及独立注册新账号。
 
 15 张图片为 Java 2D 原创几何示例，全部随源码和 JAR 交付，不依赖外部图片站。参见[素材来源及生成方式](demo-assets/SOURCES.md)。成功结果仍为预置模拟图片，不真实处理用户上传内容。
 
@@ -133,22 +134,34 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-本轮 **21 项测试通过，0 失败、0 跳过**：6 项基础测试、2 项图片校验、13 项真实 MySQL／MyBatis 集成测试。覆盖约束、归属、JSON／枚举／UTC、分页、条件更新、终态、幂等种子和已提交数据保留。
+P1 阶段 **21 项测试通过，0 失败、0 跳过**，覆盖基础、图片及真实 MySQL／MyBatis。P2 后当前完整组为 **41 项全部通过**，其中增加 5 项密码规则和 15 项认证集成，原有持久层回归仍通过。
 
-普通镜像构建没有运行中的数据库，会明确跳过 13 项数据库集成测试、执行其余 8 项；使用上述命令设置 RUN_DATABASE_TESTS=true 才运行完整组。不能把默认构建的跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内。
+普通镜像构建没有运行中的数据库，当前会明确跳过 28 项数据库／认证集成测试、执行其余 13 项；使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组。不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 现在运行全部后端测试，不限于历史 P1 用例。
 
 已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
+
+## P2 注册登录与会话
+
+Java 已提供注册、登录、当前用户和退出接口；注册成功自动登录。先 GET `/api/auth/csrf` 保留 Cookie，再用返回的 Header／Token 发送注册或登录请求；成功后重新获取 Token。GET `/api/auth/me` 返回 id／username；带新 Token 的 POST `/api/auth/logout` 返回 204，并清理 Session、上下文、CSRF 和 Cookie。
+
+用户名去首尾空白、转小写，3～32 位英文字母／数字／下划线；密码至少 8 个 Unicode 码点、UTF-8 最多 72 字节，保持原始内容、不截断。重名 409，错误凭据 401／BAD_CREDENTIALS，会话无效 401／UNAUTHENTICATED，前端应区分二者。
+
+Session Cookie 为 HttpOnly／SameSite=Lax，登录轮换 ID；30 分钟空闲过期，仅在 Java 内存，重启后重新登录。已实测会话配置 1800 秒、退出撤销、旧 Cookie 失效及重启后账号仍能重新登录。认证主体只含用户身份，另保存普通权限及 CSRF Token，不含密码／哈希。
+
+本轮通过 **41 项后端测试、10 项 Next.js→Java HTTP 检查和2项重启检查**。包括并发重名、Unicode 密码边界、CSRF、账号切换、用户隔离和显式认证上下文保存。
+
+复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。登录／注册页面属于 P5，当前完成的是后端 API。
 
 ## 接口与安全
 
 请求、响应、枚举、空值、分页、认证和错误见 [API 契约](docs/api.md)。Java `ApiContracts.java` 与前端 `contracts.ts` 保存一致字段。
 
-当前公开健康与 CSRF，其他业务保留认证边界，注册登录在 P2 开放。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
+当前公开健康、CSRF、注册登录和模板／示例的 GET 边界；个人资源要求身份，正式资源接口仍由 P3／P4 实现。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF。CurrentUser／OwnedResources 只信任服务端身份，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
 
 ## 后续阶段与边界
 
 - P1 已添加业务 schema、种子模板、演示账号和合法示例素材；HTTP 接口仍按后续阶段实施。
-- P2 注册登录；P3 模板与上传；P4 排队及三步；P5～P6 正式页面、历史及轮询；P7～P9 核心回归、CI 和交付。
+- P2 注册登录后端已完成；P3 模板与上传；P4 排队及三步；P5～P6 正式页面、历史及轮询；P7～P9 核心回归、CI 和交付。
 - P0 探针不落盘、不执行制作，不可替代真实业务闭环；P1 证明数据库初始化不重置数据，运行中任务中断处理仍由 P4 实现。
 - 首页为工程入口；已核实[参考布局](docs/reference-ui.md)，正式页面后续实施。
 

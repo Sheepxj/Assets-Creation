@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -19,7 +20,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiError> handleApi(ApiException exception) {
         return ResponseEntity.status(exception.status())
-                .body(new ApiError(exception.code(), exception.getMessage(), Map.of()));
+                .body(new ApiError(exception.code(), exception.getMessage(), exception.fieldErrors()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -34,6 +35,11 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> handleSize(MaxUploadSizeExceededException exception) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(new ApiError("FILE_TOO_LARGE", "单张图片不能超过 5 MiB", Map.of()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> handleUnreadableJson(HttpMessageNotReadableException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("INVALID_JSON", "请求 JSON 格式不正确", Map.of()));
     }
 
     @ExceptionHandler(Exception.class)

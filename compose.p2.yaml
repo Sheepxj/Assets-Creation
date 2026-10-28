@@ -1,0 +1,16 @@
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: smoke
+  p2-http-checks:
+    image: node:22.23.4-bookworm-slim
+    environment:
+      BASE_URL: http://frontend:3000
+      P2_SESSION_FILE: /evidence/p2-session.json
+    volumes:
+      - ./scripts:/checks:ro
+      - ./.local:/evidence
+    command: ["node", "/checks/smoke-p2.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy

@@ -15,7 +15,9 @@ public final class ApiContracts {
     public record ApiError(String code, String message, Map<String, String> fieldErrors) { }
     public record PageResponse<T>(List<T> items, int page, int pageSize, long total) { }
     public record UserDto(String id, String username) { }
-    public record Credentials(String username, String password) { }
+    public record Credentials(String username, String password) {
+        @Override public String toString() { return "Credentials[username=" + username + ", password=[REDACTED]]"; }
+    }
     public record CsrfDto(String token, String headerName, String parameterName) { }
     public record CategoryDto(String id, String title) { }
     public record TemplateDto(String id, String title, String category, String coverUrl,

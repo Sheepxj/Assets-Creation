@@ -4,7 +4,7 @@
 
 本文是 P0 固定的前后端契约。业务由 Java 提供，浏览器通过 Next.js 同源 `/api` 转发访问。
 
-P0 已提供健康检查、CSRF 获取、统一错误结构、基础认证边界，以及仅 `smoke` profile 可用的转发探针。P1 已提供数据库、模板／账号种子及本地图片，尚未开放业务 HTTP 接口。P2 实现注册登录，P3 实现模板与素材，P4 实现任务。下文列出后续接口不表示它们已实现；未实现的受保护路径仍返回 401。
+P0 已提供基础工程与转发，P1 已提供数据库及本地素材，P2 已实现注册、登录、退出、当前用户和归属入口。模板／素材 HTTP 接口在 P3，制作接口在 P4。下文注明后续阶段的接口尚未实现；实际认证用法见 `docs/authentication.md`。
 
 ## 2. 通用约定
 
@@ -33,7 +33,7 @@ P0 已提供健康检查、CSRF 获取、统一错误结构、基础认证边界
 
 Java 维护 Cookie 会话，默认 JSESSIONID、HttpOnly、SameSite=Lax、30 分钟空闲过期；HTTPS 部署启用 Secure。前端不在 localStorage 保存密码或会话 ID。
 
-先 `GET /api/auth/csrf` 获取 Cookie 和 Token，写请求通过返回的 headerName 携带 token。JSON 与 multipart 均需 CSRF；FormData 的 Content-Type 由浏览器生成。注册、登录和退出后重新获取 Token。401 引导登录，网络错误保留既有身份和任务。Java 重启后需要重新登录。
+先 `GET /api/auth/csrf` 获取 Cookie 和 Token，写请求通过返回的 headerName 携带 token。JSON 与 multipart 均需 CSRF；FormData 的 Content-Type 由浏览器生成。注册、登录和退出后重新获取 Token。401／UNAUTHENTICATED 引导登录，BAD_CREDENTIALS 只作为表单错误，网络错误保留既有身份和任务。Java 重启后需要重新登录。
 
 ```json
 { "token": "opaque-csrf-token", "headerName": "X-CSRF-TOKEN", "parameterName": "_csrf" }
@@ -52,7 +52,7 @@ Credentials：`{ "username": "demo_a", "password": "example-password" }`。
 
 UserDto：`{ "id": "user-id", "username": "demo_a" }`，不返回密码哈希。
 
-用户名 trim 并转小写，3～32 位英文字母、数字和下划线。密码至少 8 字符、UTF-8 不超过 72 字节。确认密码只在注册表单校验，不进入 Credentials。重名 409，用户名或密码错误统一 401。
+用户名去首尾空白并转小写，3～32 位英文字母、数字和下划线。密码不 trim，至少 8 个 Unicode 码点、UTF-8 不超过 72 字节。确认密码只在注册表单校验，不进入 Credentials。重名 409／USERNAME_TAKEN，用户名或密码错误统一 401／BAD_CREDENTIALS；会话无效是 401／UNAUTHENTICATED，非法 JSON 为 400／INVALID_JSON。
 
 健康响应：
 

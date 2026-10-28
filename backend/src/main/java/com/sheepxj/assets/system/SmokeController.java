@@ -34,6 +34,12 @@ public class SmokeController {
         return Map.of("ok", true);
     }
 
+    @GetMapping("/session")
+    public Map<String, Integer> session(HttpServletRequest request) {
+        var session = request.getSession(false);
+        return Map.of("maxInactiveIntervalSeconds", session == null ? 0 : session.getMaxInactiveInterval());
+    }
+
     @PostMapping("/echo")
     public Map<String, Object> echo(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         return Map.of("body", body, "sessionPresent", request.getSession(false) != null);

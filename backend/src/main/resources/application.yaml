@@ -4,6 +4,7 @@ server:
   servlet:
     session:
       timeout: ${SESSION_TIMEOUT:30m}
+      persistent: false
       cookie:
         http-only: true
         same-site: lax

@@ -43,7 +43,7 @@ MyBatis Mapper 和 XML 在 `backend/src/main/.../persistence/` 及 `resources/ma
 
 本地演示账号 `demo_a`、`demo_b`，口令均为 `Demo123456!`。数据库只保存独立随机盐的 BCrypt cost 10 哈希，真实匹配由集成测试校验；不要将这些公开演示账号用于外部生产环境。
 
-P1 仅初始化数据，注册登录接口在 P2 实现。开发者可在后续注册新账号；不限定只能使用演示账号。
+P1 初始化账号数据，P2 已实现注册登录接口，支持独立注册新账号，不限定只能使用演示账号；具体协议见 [认证说明](../docs/authentication.md)。
 
 六个模板、三个分类，每分类两项：旅行明信片（2 张）、海岸假日（1 张）、光影肖像（1 张）、双人合影（2 张）、创意拼贴（3 张）、四季贺卡（3 张）。全部接受 JPEG／PNG，最大 5 MiB。来源及重生成见 [素材说明](../demo-assets/SOURCES.md)。
 
@@ -65,6 +65,6 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 会运行真实 MySQL 的 PersistenceIntegrationTest。默认镜像构建没有数据库服务，因此明确跳过这组测试，但执行基础与图片测试；不能把跳过说成通过。后续 CI 需启用真实数据库测试开关。
+该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 运行当前全部后端测试，现包含 PersistenceIntegrationTest 和 AuthIntegrationTest。默认镜像构建没有数据库服务，明确跳过这两组并执行基础及输入／图片测试；不能把跳过说成通过。后续 CI 需启用真实数据库测试开关。
 
 `down` 保留数据卷，不删除默认开发项目的数据。实际执行结果及重启保持验证见 [P1 验证记录](../docs/p1-verification.md)。
