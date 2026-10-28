@@ -1,0 +1,12 @@
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: smoke
+  checks:
+    image: node:22.23.4-bookworm-slim
+    volumes:
+      - ./scripts:/checks:ro
+    command: ["node", "/checks/smoke-p0.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy

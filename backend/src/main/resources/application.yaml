@@ -1,0 +1,41 @@
+server:
+  port: 8080
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+spring:
+  application:
+    name: assets-creation-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/assets_creation?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${DATABASE_USERNAME:assets_app}
+    password: ${DATABASE_PASSWORD:local-demo-password}
+    hikari:
+      connection-timeout: 5000
+      initialization-fail-timeout: 30000
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  jackson:
+    time-zone: UTC
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  storage-root: ${STORAGE_ROOT:./.data}
+  simulation:
+    check-delay-ms: ${SIM_CHECK_DELAY_MS:2000}
+    generate-delay-ms: ${SIM_GENERATE_DELAY_MS:8000}
+    finalize-delay-ms: ${SIM_FINALIZE_DELAY_MS:2000}
+    fail-stage: ${SIM_FAIL_STAGE:NONE}

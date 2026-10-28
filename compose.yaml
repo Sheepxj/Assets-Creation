@@ -1,0 +1,73 @@
+name: assets-creation
+
+services:
+  mysql:
+    image: mysql:8.4.13
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-assets_creation}
+      MYSQL_USER: ${MYSQL_USER:-assets_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-local-demo-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local-root-password}
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u\"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-assets_creation}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+      DATABASE_USERNAME: ${MYSQL_USER:-assets_app}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:-local-demo-password}
+      STORAGE_ROOT: /app/data
+      SESSION_TIMEOUT: ${SESSION_TIMEOUT:-30m}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      SIM_CHECK_DELAY_MS: ${SIM_CHECK_DELAY_MS:-2000}
+      SIM_GENERATE_DELAY_MS: ${SIM_GENERATE_DELAY_MS:-8000}
+      SIM_FINALIZE_DELAY_MS: ${SIM_FINALIZE_DELAY_MS:-2000}
+      SIM_FAIL_STAGE: ${SIM_FAIL_STAGE:-NONE}
+      TZ: UTC
+    volumes:
+      - asset-data:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      JAVA_API_URL: ${JAVA_API_URL:-http://backend:8080}
+      PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-10000}
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+volumes:
+  mysql-data:
+  asset-data:
