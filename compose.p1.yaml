@@ -7,6 +7,7 @@ services:
       DATABASE_USERNAME: ${MYSQL_USER:-assets_app}
       DATABASE_PASSWORD: ${MYSQL_PASSWORD:-local-demo-password}
       RUN_DATABASE_TESTS: "true"
+      STORAGE_ROOT: /tmp/assets-test-storage
       TZ: UTC
     volumes:
       - ./backend:/workspace/backend:ro

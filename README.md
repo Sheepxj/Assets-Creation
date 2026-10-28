@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0～P2 已完成：基础工程、接口契约、同源转发、容器入口、数据素材、MyBatis、注册登录后端及资源归属入口。模板／素材 HTTP API、任务执行和正式前端页面按后续阶段实施。
+P0～P3 已完成：基础工程、接口契约、同源转发、容器入口、数据素材、MyBatis、注册登录、模板接口、真实图片上传与本人预览。任务执行和正式前端页面按后续阶段实施。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2 验证记录](docs/p2-verification.md)。后续功能说明和接口是开发约定，不冒充已交付功能。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3 验证记录](docs/p3-verification.md)。后续功能说明和接口是开发约定，不冒充已交付功能。
 
 ## 技术版本
 
@@ -29,15 +29,16 @@ P0～P2 已完成：基础工程、接口契约、同源转发、容器入口、
 
 ```text
 frontend/           App Router、Java 同源转发、TypeScript DTO、样式及测试配置
-backend/            注册登录 API、会话／CSRF／归属、DTO、MyBatis 和测试
+backend/            认证、模板／素材 API、存储／归属、DTO、MyBatis 和测试
 database/           六表结构、幂等种子、只读检查和专用重建验证 SQL
 demo-assets/        6 张封面、6 张模拟结果、3 张上传示例及来源／哈希清单
-scripts/            容器内 P0 HTTP 集成检查
+scripts/            容器内 P0／P2／P3 HTTP 集成检查
 docs/               API、参考图、阶段验证、设计和开发计划
 compose.yaml        正常运行的 Next.js、Java、MySQL 三服务
 compose.smoke.yaml  P0 smoke profile 与检查容器
 compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
 compose.p2.yaml     P2 实际 HTTP 与会话重启检查
+compose.p3.yaml     P3 实际上传与保留卷重建检查
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -51,7 +52,7 @@ compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 docker compose up --build
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)，当前首页提供连接检查入口。也可访问 [Java／MySQL 健康接口](http://localhost:3000/api/health)。
+打开 [http://localhost:3000](http://localhost:3000)，当前首页提供连接检查入口。也可访问 [Java／MySQL 健康接口](http://localhost:3000/api/health)及[模板 API](http://localhost:3000/api/templates)。P5 完成后可通过正式页面浏览模板、注册登录、上传与提交；P6 完成后可查看多任务进度、个人历史及刷新恢复。当前尚没有这些业务页面。
 
 可选复制 `.env.example` 为 `.env` 修改配置；不复制也可用本地演示默认值。示例口令仅供本地运行，外部部署前替换。
 
@@ -74,7 +75,7 @@ docker compose down
 | MYSQL_USER / MYSQL_PASSWORD | assets_app / 本地演示口令 | Java 数据库账户 |
 | MYSQL_ROOT_PASSWORD | 本地演示口令 | 初始化管理口令，Java 不使用 root |
 | DATABASE_URL / DATABASE_USERNAME / DATABASE_PASSWORD | Compose 从 MYSQL_* 组装 | Java JDBC；本地启动也可直接设置 |
-| STORAGE_ROOT | Compose 为 /app/data | 文件目录，P3 开始写素材 |
+| STORAGE_ROOT | Compose 为 /app/data | 已用于上传；asset-data 卷保留文件 |
 | SESSION_TIMEOUT | 30m | 会话空闲超时 |
 | SESSION_COOKIE_SECURE | false | 本地 HTTP；HTTPS 设为 true |
 | PROXY_TIMEOUT_MS | 10000 | 单个 Java 请求超时，不是制作耗时 |
@@ -134,9 +135,9 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-P1 阶段 **21 项测试通过，0 失败、0 跳过**，覆盖基础、图片及真实 MySQL／MyBatis。P2 后当前完整组为 **41 项全部通过**，其中增加 5 项密码规则和 15 项认证集成，原有持久层回归仍通过。
+P1 阶段 21 项、P2 阶段 41 项通过。P3 后当前完整组为 **62 项全部通过，0 失败、0 错误、0 跳过**；新增图片校验、存储故障清理、模板及素材 HTTP 集成，原有认证与持久层回归仍通过。
 
-普通镜像构建没有运行中的数据库，当前会明确跳过 28 项数据库／认证集成测试、执行其余 13 项；使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组。不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 现在运行全部后端测试，不限于历史 P1 用例。
+普通镜像构建没有运行中的数据库，当前会明确跳过 38 项数据库／认证／素材集成测试、执行其余 24 项；使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组。不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 现在运行全部后端测试，不限于历史 P1 用例。
 
 已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
 
@@ -152,16 +153,26 @@ Session Cookie 为 HttpOnly／SameSite=Lax，登录轮换 ID；30 分钟空闲�
 
 复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。登录／注册页面属于 P5，当前完成的是后端 API。
 
+## P3 模板、上传及预览
+
+Java 从 MySQL 提供分类、列表、筛选和详情；六个封面可公开读取。登录后以 multipart 单字段 file 上传真实 JPEG／PNG，最大 5 MiB，同时检查实际格式、可解码性及 4000 万像素上限。返回服务端素材 ID 和本人预览地址，文件保存到数据卷，元数据保存到 MySQL。
+
+本轮通过 **62 项后端测试、13 项实际 HTTP 检查及 2 项保留卷重建检查**。真实 Next.js→Java 路径覆盖精确 5 MiB、超限、伪装／损坏／空图片、Cookie／CSRF、用户隔离；Java 容器重建后重新登录，四份素材均可读取且哈希不变。
+
+完整接口、错误码、存储故障边界、替换／移除语义和容器复现命令见[上传说明](docs/uploads.md)。专用检查读取 demo-assets 内的真实图片，证据快照仅写入忽略的 .local；验证组的素材留在专用卷，不清理默认开发数据。
+
+P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤立文件没有自动清理。文件系统与数据库不是分布式事务，崩溃或提交结果不确定时可能出现未关联文件或缺文件记录，详见阶段记录。
+
 ## 接口与安全
 
 请求、响应、枚举、空值、分页、认证和错误见 [API 契约](docs/api.md)。Java `ApiContracts.java` 与前端 `contracts.ts` 保存一致字段。
 
-当前公开健康、CSRF、注册登录和模板／示例的 GET 边界；个人资源要求身份，正式资源接口仍由 P3／P4 实现。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF。CurrentUser／OwnedResources 只信任服务端身份，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
+当前公开健康、CSRF、注册登录和模板／封面 GET；上传和本人预览已实现并要求身份，制作资源在 P4 实现。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF。CurrentUser／OwnedResources 只信任服务端身份，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
 
 ## 后续阶段与边界
 
-- P1 已添加业务 schema、种子模板、演示账号和合法示例素材；HTTP 接口仍按后续阶段实施。
-- P2 注册登录后端已完成；P3 模板与上传；P4 排队及三步；P5～P6 正式页面、历史及轮询；P7～P9 核心回归、CI 和交付。
+- P1 数据、P2 认证、P3 模板与上传后端均已完成；尚未形成制作业务闭环。
+- 下一阶段 P4 排队及三步；P5～P6 正式页面、历史及轮询；P7～P9 核心回归、CI 和交付。
 - P0 探针不落盘、不执行制作，不可替代真实业务闭环；P1 证明数据库初始化不重置数据，运行中任务中断处理仍由 P4 实现。
 - 首页为工程入口；已核实[参考布局](docs/reference-ui.md)，正式页面后续实施。
 

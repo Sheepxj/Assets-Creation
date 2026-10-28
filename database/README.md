@@ -65,6 +65,6 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 运行当前全部后端测试，现包含 PersistenceIntegrationTest 和 AuthIntegrationTest。默认镜像构建没有数据库服务，明确跳过这两组并执行基础及输入／图片测试；不能把跳过说成通过。后续 CI 需启用真实数据库测试开关。
+该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 运行当前全部后端测试，现包含 PersistenceIntegrationTest、AuthIntegrationTest、AssetIntegrationTest。默认镜像构建没有数据库服务，明确跳过这三组并执行基础及输入／图片／存储测试；不能把跳过说成通过。测试存储目录在容器临时目录，避免向只读源码挂载写入。后续 CI 需启用真实数据库测试开关。
 
 `down` 保留数据卷，不删除默认开发项目的数据。实际执行结果及重启保持验证见 [P1 验证记录](../docs/p1-verification.md)。

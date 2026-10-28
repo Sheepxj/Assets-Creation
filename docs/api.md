@@ -4,7 +4,7 @@
 
 本文是 P0 固定的前后端契约。业务由 Java 提供，浏览器通过 Next.js 同源 `/api` 转发访问。
 
-P0 已提供基础工程与转发，P1 已提供数据库及本地素材，P2 已实现注册、登录、退出、当前用户和归属入口。模板／素材 HTTP 接口在 P3，制作接口在 P4。下文注明后续阶段的接口尚未实现；实际认证用法见 `docs/authentication.md`。
+P0～P3 已实现基础工程、数据素材、注册登录、模板分类／列表／详情、封面、素材上传及本人预览。制作接口在 P4 实施，当前尚未实现。认证用法见[认证说明](authentication.md)，图片限制及存储行为见[上传说明](uploads.md)；正式前端页面在 P5～P6 实施。
 
 ## 2. 通用约定
 
@@ -69,6 +69,7 @@ UserDto：`{ "id": "user-id", "username": "demo_a" }`，不返回密码哈希。
 | GET /api/templates/categories | 无 | 200，CategoryDto[] | P3 |
 | GET /api/templates | 可选 category，使用分类 ID | 200，TemplateDto[] | P3 |
 | GET /api/templates/{id} | 模板 ID | 200，TemplateDto；不存在 404 | P3 |
+| GET /api/demo/covers/{filename} | 受限封面文件名，公开 | 200，JPEG／PNG；不存在 404 | P3 |
 
 CategoryDto：`{ "id": "travel", "title": "旅行风景" }`。
 
@@ -85,7 +86,7 @@ CategoryDto：`{ "id": "travel", "title": "旅行风景" }`。
 }
 ```
 
-以上为使用 P1 实际种子 ID 的 TemplateDto 示例。封面通过公开受控路径读取，HTTP 接口在 P3 提供。未知分类返回 `[]`；请求失败与空列表区分。不提供模板 CRUD。
+以上为使用 P1 实际种子 ID 的 TemplateDto 示例。上述接口已实现；分类与模板直接读取 MySQL，封面通过公开受控路径读取。未知分类返回 `[]`，空白分类表示全部；详情不存在为 404／TEMPLATE_NOT_FOUND。请求失败与空列表区分。不提供模板 CRUD。
 
 ## 5. 素材
 
@@ -104,7 +105,25 @@ CategoryDto：`{ "id": "travel", "title": "旅行风景" }`。
 }
 ```
 
-接受实际可解码 JPEG／PNG，单文件最大 5 MiB。缺少 file 返回 400，过大 413，不支持格式 415，损坏图片 400。服务端检查真实内容，模板限制在任务提交时再次校验。素材不存在或非本人统一 404。不提供删除接口。
+上述接口已实现。每次恰好一个名为 file 的文件字段，接受实际可解码 JPEG／PNG；声明 MIME 也必须属于这两种并与实际内容一致。单文件最大 5 MiB（5,242,880 字节，含边界），multipart 总请求上限 6 MiB。分配像素缓存前额外限制为 4000 万像素。文件扩展名不作为格式依据，originalFilename 只保留最后一段、不能决定存储路径。归属来自服务端会话，不接受 userId 指定所有者。
+
+| HTTP／code | 含义 |
+| --- | --- |
+| 400／INVALID_FILE_COUNT | 缺文件、文件字段名不正确或多文件 |
+| 400／FILE_EMPTY | 空文件 |
+| 400／INVALID_IMAGE | 图片损坏或不可解码 |
+| 400／IMAGE_DIMENSIONS_TOO_LARGE | 超过 4000 万像素 |
+| 400／INVALID_FILENAME | 文件名含控制字符或超过 255 个 Unicode 码点 |
+| 400／UPLOAD_UNREADABLE | 上传流无法读取 |
+| 413／FILE_TOO_LARGE | 文件或整个 multipart 请求超限 |
+| 415／UNSUPPORTED_IMAGE_TYPE | 实际内容不支持，或声明 MIME 缺失／不支持 |
+| 415／IMAGE_TYPE_MISMATCH | 声明 MIME 与实际 JPEG／PNG 不一致 |
+| 415／HTTP_415 | 上传接口收到 JSON 等非 multipart 请求 |
+| 503／STORAGE_UNAVAILABLE | 文件存储写入失败 |
+
+素材不存在、非本人或文件缺失统一 404／RESOURCE_NOT_FOUND；未登录 401，CSRF 缺失／错误 403。预览返回实际 Content-Type、生成文件名的 inline Content-Disposition、nosniff、no-store。完整文件写入后才创建数据库记录，普通数据库失败会清理文件；文件与数据库事务的崩溃边界见[上传说明](uploads.md)。
+
+不提供删除接口；替换／移除只更新当前表单引用，不删除服务端旧文件。P4 创建任务时再次校验全部素材和模板要求，P5 负责上传位交互及客户端提示。
 
 ## 6. 任务
 

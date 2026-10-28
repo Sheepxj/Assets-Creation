@@ -258,7 +258,8 @@ class AuthIntegrationTest {
         for (String path : new String[]{"/api/auth/me", "/api/assets/unknown/content", "/api/tasks/unknown/result"}) {
             mvc.perform(get(path)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
         }
-        for (String path : new String[]{"/api/templates", "/api/demo/covers/unknown.jpg"}) mvc.perform(get(path)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/templates")).andExpect(status().isOk());
+        mvc.perform(get("/api/demo/covers/unknown.jpg")).andExpect(status().isNotFound());
         var anonymous = new Client().csrf();
         assertEquals(401, anonymous.write("/api/auth/logout", Map.of()).getResponse().getStatus());
     }
