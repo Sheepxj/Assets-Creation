@@ -3,10 +3,13 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
-FROM dependencies AS build
+FROM dependencies AS checks
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
-RUN npm run lint && npm run typecheck && npm run build
+CMD ["sh", "-c", "npm run lint && npm run typecheck && npm test -- --run"]
+
+FROM checks AS build
+RUN npm run lint && npm run typecheck && npm test -- --run && npm run build
 
 FROM node:22.23.4-bookworm-slim AS runtime
 WORKDIR /app

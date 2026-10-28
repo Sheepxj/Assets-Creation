@@ -1,4 +1,6 @@
-# P2 注册、登录、会话与归属
+# 注册、登录、会话与归属
+
+Java 认证在 P2 实现，正式登录／注册及身份生命周期在 P5 接入，详见[前端说明](frontend.md)和[P5 验证](p5-verification.md)。确认密码、安全 returnTo、恢复身份、CSRF 刷新、过期提示及用户切换清理均已实现；凭据不写浏览器 storage。网络结果未知时暂时阻止私有写操作并提供重新确认，不直接清空已知身份。
 
 ## 已实现接口
 
@@ -48,9 +50,9 @@ Cookie 为 HttpOnly、SameSite=Lax、Path=/；本地 HTTP 的 Secure=false，HTT
 
 `CurrentUser.require()` 仅接受服务端已认证的 UserIdentity。`OwnedResources.requireAsset(id)`、`requireTask(id)` 在 SQL 中同时使用资源 ID 与当前用户 ID；不存在和非本人均返回 404／RESOURCE_NOT_FOUND。
 
-P3 文件／上传接口、P4 任务接口应复用这些入口。后台执行器本身使用已持久化任务身份，不依赖浏览器线程的 CurrentUser。
+P3 文件／上传接口、P4 任务接口已复用这些入口。后台执行器本身使用已持久化任务身份，不依赖浏览器线程的 CurrentUser。
 
-P2 通过仅位于 src/test 的控制器测试实际会话与归属助手：A 访问本人成功、B 即使提交 A 的 userId 也返回 404。测试控制器不进入运行 JAR，实际 HTTP 已验证其返回 404。P3／P4 的正式资源 HTTP 接口尚未实现，不能将测试入口视为业务完成。
+P2 通过仅位于 src/test 的控制器测试实际会话与归属助手：A 访问本人成功、B 即使提交 A 的 userId 也返回 404。测试控制器不进入运行 JAR。P3／P4 随后补齐正式素材、任务及结果资源接口，并在真实 HTTP 验证用户隔离，见各阶段记录。
 
 ## 可重复容器验证
 
@@ -61,7 +63,7 @@ docker compose -p assets-creation-p2 -f compose.yaml -f compose.p1.yaml up -d --
 docker compose -p assets-creation-p2 -f compose.yaml -f compose.p1.yaml run --rm p1-checks
 ```
 
-当前为 41 项全部通过：6 基础、2 素材、5 密码规则、13 持久层、15 认证集成。默认镜像构建无数据库，执行 13 项并明确跳过 28 项；上述专用服务启用 RUN_DATABASE_TESTS=true 才运行全部。
+P2 当时为 41 项全部通过：6 基础、2 素材、5 密码规则、13 持久层、15 认证集成。当前完整后端组为 98 项，普通镜像构建执行 40 项、报告跳过 54 项；须使用专用服务设置 RUN_DATABASE_TESTS=true 才运行完整组。参数化测试禁用时按方法计数，不把跳过当作通过。
 
 实际 Next.js → Java HTTP 验证，在 PowerShell 中设置隔离端口：
 

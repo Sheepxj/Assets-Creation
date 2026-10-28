@@ -1,6 +1,6 @@
 # 模板、上传与文件访问
 
-P3 已实现模板分类／列表／详情、公开封面、单图片上传和本人预览，P4 已补齐制作时的模板与素材组合校验。页面交互在 P5 实施。接口字段见 [API 契约](api.md)。
+P3 已实现模板分类／列表／详情、公开封面、单图片上传和本人预览，P4 已补齐制作时的模板与素材组合校验。P5 已接入正式页面、动态上传位及提交，详见[前端说明](frontend.md)。接口字段见 [API 契约](api.md)。
 
 ## 模板读取
 
@@ -38,7 +38,7 @@ const response = await fetch("/api/assets", {
 | 解码内存保护 | 分配图片像素缓存前检查宽高乘积，超过 40,000,000 像素返回 400／IMAGE_DIMENSIONS_TOO_LARGE；是实现的附加资源限制 |
 | Next.js 转发 | App Router 流式转发 FormData 和响应，保留 Cookie、CSRF、状态及 JSON 错误；没有较小的 Server Action 体积限制 |
 | 请求超时 | 默认 10 秒，PROXY_TIMEOUT_MS 可调整；上传超时是请求异常，不能据此推断未来制作任务失败 |
-| P5 页面约定 | 根据模板的 acceptedMimeTypes／maxFileSizeBytes 做即时反馈，同时展示服务端 message／fieldErrors；当前尚未实现页面校验 |
+| P5 页面校验 | 已根据模板的 acceptedMimeTypes／maxFileSizeBytes 做即时反馈，并展示服务端错误；上传中、未齐或失败时不能提交 |
 
 空文件 400／FILE_EMPTY；不支持或伪装格式 415／UNSUPPORTED_IMAGE_TYPE；声明与实际 JPEG／PNG 不一致 415／IMAGE_TYPE_MISMATCH；解码失败 400／INVALID_IMAGE；文件字段不合法 400／INVALID_FILE_COUNT。缺少或不可解析的 MIME 声明不予接收。合法 JPEG 即使文件名以 .png 结尾，仍按 JPEG 保存和读取。
 
@@ -59,7 +59,7 @@ STORAGE_ROOT 在 Compose 中为 `/app/data`，挂载 asset-data 数据卷。启�
 
 ## 替换和移除
 
-P5 的替换是上传新素材后更新当前上传位的 assetId；移除只清空表单引用。不提供删除素材 API，也不自动删除旧素材，避免影响已创建的任务。旧上传请求的完成结果不能覆盖新上传位，P5 实现请求身份检查。
+P5 替换时立即清空旧 assetId，新上传成功后再保存新 ID；移除只清空表单引用。不提供删除素材 API，也不自动删除旧素材，避免影响已创建的任务。已通过取消信号、选择序号及账户 scope 检查拒绝迟到响应，替换、移除和卸载释放临时预览 URL。
 
 P4 创建任务已检查模板存在、素材数量准确、ID 不重复、当前用户归属、实际文件存在及 MIME／大小符合该模板，执行素材检查步骤时再次确认可解码和可用。P3 的单文件上传通过不意味着可以跳过这些校验，详见[任务说明](tasks.md)。
 

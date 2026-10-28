@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0～P4 已完成：基础工程、数据素材、注册登录、模板、真实图片上传，以及 MySQL 排队、三步异步制作、个人历史／状态、结果预览和重启处理。Java API 已形成制作闭环；正式前端页面按 P5～P6 实施。
+P0～P5 已完成：Java／MySQL 后台闭环及正式前端的模板广场、注册登录、动态上传、提交与连续制作。浏览器已跑通注册→上传→连续提交→结果预览；详情记录和个人历史已接入 Java。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 验证记录](docs/p4-verification.md)及[P4 源码复核](docs/p4-source-audit.md)。后续页面功能仍是开发约定，不冒充已交付。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)及 [P5 验证记录](docs/p5-verification.md)。P6 所需的共享任务跟踪／历史基础已有实现，完整 P6 专项验收仍待执行，P7～P9 集中回归、CI 与最终交付尚未完成。
 
 ## 技术版本
 
@@ -28,7 +28,7 @@ P0～P4 已完成：基础工程、数据素材、注册登录、模板、真实
 ## 项目结构
 
 ```text
-frontend/           App Router、Java 同源转发、TypeScript DTO、样式及测试配置
+frontend/           App Router 页面、身份／上传／提交／任务状态、Java 同源转发及测试
 backend/            认证、模板／素材／任务 API、三步执行／恢复、存储、MyBatis 和测试
 database/           六表结构、幂等种子、只读检查和专用重建验证 SQL
 demo-assets/        6 张封面、6 张模拟结果、3 张上传示例及来源／哈希清单
@@ -40,6 +40,7 @@ compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
 compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 compose.p3.yaml     P3 实际上传与保留卷重建检查
 compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
+compose.frontend.yaml 容器内前端 lint／类型／49 项测试，无需启动数据库
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -53,7 +54,7 @@ compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
 docker compose up --build
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)，当前首页提供连接检查入口。也可访问 [Java／MySQL 健康接口](http://localhost:3000/api/health)及[模板 API](http://localhost:3000/api/templates)。P5 完成后可通过正式页面浏览模板、注册登录、上传与提交；P6 完成后可查看多任务进度、个人历史及刷新恢复。当前尚没有这些业务页面。
+打开 [http://localhost:3000](http://localhost:3000) 浏览模板，注册或登录，进入详情上传并提交。可用 `demo_a`／`demo_b`，密码均为 `Demo123456!`；上传示例在 `demo-assets/samples/`。海岸假日只需一张图，受理后点击“开始下一次制作”可连续提交，原任务在右侧继续。导航“我的作品”查看本人历史，成功卡片打开结果预览，Escape 关闭。也可访问 [Java／MySQL 健康接口](http://localhost:3000/api/health)及[模板 API](http://localhost:3000/api/templates)。页面与状态说明见[前端说明](docs/frontend.md)。
 
 可选复制 `.env.example` 为 `.env` 修改配置；不复制也可用本地演示默认值。示例口令仅供本地运行，外部部署前替换。
 
@@ -104,7 +105,7 @@ docker compose -p assets-creation-p0 -f compose.yaml -f compose.smoke.yaml up --
 docker compose build
 ```
 
-前端构建依次执行 `npm ci`、`npm run lint`、`npm run typecheck`、`npm run build`。Java 通过 `./mvnw -B verify` 执行测试和打包。P0 的 6 项 Java 测试及上述 10 项跨容器 HTTP 检查均已通过；Java 测试验证健康失败语义、JSON 401、CSRF 和默认关闭探针，真实数据库连接由跨容器检查验证。
+前端构建依次执行 `npm ci`、`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build`。Java 通过 `./mvnw -B verify` 执行测试和打包。P0 的 6 项 Java 测试及上述 10 项跨容器 HTTP 检查为历史基础证据；当前完整后端组和前端结果见后文。
 
 有本地工具的开发者也可在相应目录运行以下命令，评估者不必在宿主机执行：
 
@@ -113,12 +114,19 @@ frontend/:
   npm ci
   npm run lint
   npm run typecheck
+  npm test -- --run
   npm run build
 backend/:
   ./mvnw -B verify
 ```
 
-P0 仅配置前端测试工具，业务测试在 P5～P7 添加，不宣称 `npm test` 已通过。GitHub Actions 在 P8 配置，当前没有完整 CI。
+P5 已通过前端 9 文件、49 项测试，以及 lint、类型检查和生产构建。只运行前端检查的容器命令如下，不需要 Java／MySQL：
+
+```sh
+docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
+```
+
+覆盖 Cookie／CSRF、身份和旧响应隔离、上传竞争、结果未知时原键重试、连续任务及基础查询生命周期。GitHub Actions 在 P8 配置，当前没有完整 CI。
 
 ## P1 数据与真实数据库验证
 
@@ -152,7 +160,7 @@ Session Cookie 为 HttpOnly／SameSite=Lax，登录轮换 ID；30 分钟空闲�
 
 P2 阶段通过 **41 项后端测试、10 项 Next.js→Java HTTP 检查和2项重启检查**。包括并发重名、Unicode 密码边界、CSRF、账号切换、用户隔离和显式认证上下文保存。
 
-复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。登录／注册页面属于 P5，当前完成的是后端 API。
+复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。P5 已提供登录／注册页面、确认密码、安全 returnTo、身份恢复及切换清理；网络异常保留已知身份并提供重新确认，错误密码不会退出旧账户。
 
 ## P3 模板、上传及预览
 
@@ -182,12 +190,13 @@ P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤�
 
 首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当前 98 项通过。详细缺陷复现、19 项源码映射和本轮 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，完整复现与边界见[任务说明](docs/tasks.md)。
 
-## 后续阶段与边界
+## P5 前端完成与后续边界
 
-- P1～P4 后端业务已完成，M1（只通过 API 完成制作）已达成；前端业务页面仍未完成。
-- 下一阶段 P5 页面及提交、P6 多任务／历史／轮询；P7～P9 集中回归、CI 和交付。
+- P0～P5 已完成，M1 后端闭环及 M2 浏览器注册、上传、连续提交、预览已跑通，逐项见 [P5 记录](docs/p5-verification.md)。
+- 为满足 P5-10／12，已有共享任务跟踪、个人历史及基本刷新恢复；P6 仍需按完整专项矩阵验收，随后 P7～P9 集中回归、CI 和交付。
 - P0 探针不替代真实业务闭环；重启中断已由 P4 实测，不支持执行中自动续跑。
-- 首页为工程入口；已核实[参考布局](docs/reference-ui.md)，正式页面后续实施。
+- 已按[参考布局](docs/reference-ui.md)实现深色模板网格、制作／记录双栏、窄屏单栏及键盘预览，优先基本可用性。
+- 未提交表单不跨刷新保留；已受理任务由 Java 恢复。替换／移除只清表单引用，无孤立文件自动清理。未知提交保留原 requestId 供手动安全重试，不自动重放写请求。
 
 ## 基本部署与回滚
 

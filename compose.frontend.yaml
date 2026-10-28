@@ -1,0 +1,5 @@
+services:
+  frontend-checks:
+    build:
+      context: ./frontend
+      target: checks
