@@ -237,16 +237,22 @@ class TaskIntegrationTest {
         for (String query : List.of("page=0", "pageSize=101", "status=INVALID", "page=not-a-number")) mvc.perform(get("/api/tasks?" + query).session(user.cookie)).andExpect(status().isBadRequest());
     }
 
-    @Test void recoveryFailsRunningOnlyAndQueuedKeepsItsOriginalSnapshot() throws Exception {
+    @ParameterizedTest @EnumSource(TaskStage.class)
+    void recoveryFailsRunningOnlyAndQueuedKeepsItsOriginalSnapshot(TaskStage interruptedStage) throws Exception {
         String asset = asset(); var terminal = create("coastal-memory", List.of(asset), UUID.randomUUID().toString()); execution.runNextTask();
         var done = detail(id(terminal));
         var running = create("coastal-memory", List.of(asset), UUID.randomUUID().toString()); state.claimNext();
+        for (int i = 0; i < interruptedStage.ordinal(); i++) state.completeStage(id(running), TaskStage.values()[i], null);
         var queued = create("coastal-memory", List.of(asset), UUID.randomUUID().toString()); snapshot(id(queued), "GENERATE");
         state.failRunning("SERVICE_RESTARTED", "服务重启导致制作中断");
         var failed = detail(id(running)); assertEquals("FAILED", failed.get("status").asText()); assertEquals("SERVICE_RESTARTED", failed.get("errorCode").asText());
-        assertEquals("FAILED", failed.get("steps").get(0).get("status").asText()); assertEquals("PENDING", failed.get("steps").get(1).get("status").asText());
+        assertEquals(interruptedStage.name(), failed.get("currentStage").asText());
+        for (int i = 0; i < 3; i++) assertEquals(i < interruptedStage.ordinal() ? "SUCCEEDED" : i == interruptedStage.ordinal() ? "FAILED" : "PENDING", failed.get("steps").get(i).get("status").asText());
         assertEquals("QUEUED", detail(id(queued)).get("status").asText()); assertEquals(done, detail(id(terminal)));
         state.failRunning("SERVICE_RESTARTED", "服务重启导致制作中断"); assertEquals(failed, detail(id(running)));
+        assertFalse(state.fail(id(terminal), "LATE_FAILURE", "must not overwrite success"));
+        assertThrows(IllegalStateException.class, () -> state.completeStage(id(terminal), TaskStage.FINALIZE, "unused"));
+        assertEquals(done, detail(id(terminal)));
         execution.runNextTask(); var later = detail(id(queued));
         assertEquals("SIMULATED_FAILURE", later.get("errorCode").asText()); assertEquals("GENERATE", later.get("currentStage").asText()); assertEquals(done, detail(id(terminal)));
     }

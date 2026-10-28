@@ -6,7 +6,7 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 P0～P4 已完成：基础工程、数据素材、注册登录、模板、真实图片上传，以及 MySQL 排队、三步异步制作、个人历史／状态、结果预览和重启处理。Java API 已形成制作闭环；正式前端页面按 P5～P6 实施。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 验证记录](docs/p4-verification.md)。后续页面功能仍是开发约定，不冒充已交付。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 验证记录](docs/p4-verification.md)及[P4 源码复核](docs/p4-source-audit.md)。后续页面功能仍是开发约定，不冒充已交付。
 
 ## 技术版本
 
@@ -136,9 +136,9 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项通过。P4 当前完整组为 **91 项全部通过，0 失败、0 错误、0 跳过**；新增步骤顺序／中断、事务回滚、并发幂等、历史及恢复验证，原有回归仍通过。
+P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项、首次 P4 为 91 项通过。P4 源码复核后当前完整组为 **98 项全部通过，0 失败、0 错误、0 跳过**；增加关闭竞争、真实阶段异常及三阶段恢复／终态保护覆盖。
 
-普通镜像构建没有运行中的数据库，执行 35 项、报告跳过 54 项；被禁用的参数化集成测试按方法计数，完整启用后总数是 91。使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组，不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
+普通镜像构建没有运行中的数据库，执行 40 项、报告跳过 54 项；被禁用的参数化集成测试按方法计数，完整启用后总数是 98。使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组，不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
 
 已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
 
@@ -180,7 +180,7 @@ P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤�
 
 正常关闭先停止领取、允许当前任务在窗口内完成；要完整观察可用 `docker compose stop -t 25 backend`。启动时遗留 RUNNING 与执行中步骤变成 FAILED／SERVICE_RESTARTED，原因“服务重启导致制作中断”；QUEUED 继续、终态不变。不续跑执行中任务，不支持多后端共同消费。
 
-本轮通过 91 项后端测试、7 项成功链路 HTTP 检查、三个指定失败、强制中断恢复、正常关闭 SQL 证据及重启后结果哈希检查。完整复现与边界见[任务说明](docs/tasks.md)，逐项结果见[P4 验证记录](docs/p4-verification.md)。
+首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当前 98 项通过。详细缺陷复现、19 项源码映射和本轮 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，完整复现与边界见[任务说明](docs/tasks.md)。
 
 ## 后续阶段与边界
 

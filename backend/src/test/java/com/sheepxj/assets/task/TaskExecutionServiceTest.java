@@ -5,6 +5,7 @@ import com.sheepxj.assets.contract.ApiContracts.*;
 import com.sheepxj.assets.persistence.model.TaskRecord;
 import com.sheepxj.assets.storage.FileStorage;
 import java.time.Instant;
+import java.io.IOException;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +54,30 @@ class TaskExecutionServiceTest {
             execution.runNextTask(); assertTrue(Thread.currentThread().isInterrupted());
             verify(state, never()).fail(anyString(), anyString(), anyString()); verifyNoInteractions(stages);
         } finally { Thread.interrupted(); }
+    }
+
+    @Test void closedAdmissionDoesNotTouchTheQueueAndCanBeReopened() {
+        execution.stopAccepting();
+        assertFalse(execution.runNextTask()); verifyNoInteractions(state);
+        execution.startAccepting();
+        assertFalse(execution.runNextTask()); verify(state).claimNext();
+    }
+
+    @ParameterizedTest @EnumSource(TaskStage.class)
+    void realStageExceptionsArePersistedAndStopLaterWork(TaskStage failure) throws Exception {
+        var task = task(SimulationSettings.FailStage.NONE); when(state.claimNext()).thenReturn(task);
+        when(stages.generate(task)).thenReturn("results/source.png");
+        switch (failure) {
+            case MATERIAL_CHECK -> doThrow(new IllegalStateException("missing material")).when(stages).checkMaterials(task);
+            case GENERATE -> doThrow(new IOException("missing preset")).when(stages).generate(task);
+            case FINALIZE -> doThrow(new IOException("storage failure")).when(stages).finalizeResult(task, "results/source.png");
+        }
+        execution.runNextTask();
+        verify(state).fail(eq(task.id()), eq(failure.name() + "_FAILED"), anyString());
+        verify(delay, times(failure.ordinal() + 1)).pause(anyLong());
+        verify(state, times(failure.ordinal())).completeStage(anyString(), any(), any());
+        if (failure == TaskStage.MATERIAL_CHECK) verify(stages, never()).generate(any());
+        if (failure != TaskStage.FINALIZE) verify(stages, never()).finalizeResult(any(), any());
     }
 
     @Test void concurrentPollCannotStartAnotherExecution() throws Exception {

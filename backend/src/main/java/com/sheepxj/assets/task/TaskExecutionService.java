@@ -18,6 +18,8 @@ public class TaskExecutionService {
     private final ObjectMapper json;
     private final FileStorage storage;
     private final AtomicBoolean executing = new AtomicBoolean();
+    private final Object claimLock = new Object();
+    private boolean accepting = true;
 
     public TaskExecutionService(TaskStateStore state, TaskStages stages, TaskConfiguration.Delay delay, ObjectMapper json, FileStorage storage) {
         this.state = state; this.stages = stages; this.delay = delay; this.json = json; this.storage = storage;
@@ -26,14 +28,23 @@ public class TaskExecutionService {
     public boolean runNextTask() {
         if (!executing.compareAndSet(false, true)) return false;
         try {
+            synchronized (claimLock) { if (!accepting) return false; }
             // No other execution is active in this single-instance worker. Reconcile an earlier uncertain DB write before taking more work.
             state.failRunning("STATE_PERSISTENCE_FAILED", "制作状态保存失败，处理已停止");
-            var task = state.claimNext();
+            TaskRecord task;
+            // Closing admission and committing a claim share the same lock. A poll already in flight must recheck after reconciliation.
+            synchronized (claimLock) {
+                if (!accepting) return false;
+                task = state.claimNext();
+            }
             if (task == null) return false;
             execute(task);
             return true;
         } finally { executing.set(false); }
     }
+
+    public void startAccepting() { synchronized (claimLock) { accepting = true; } }
+    public void stopAccepting() { synchronized (claimLock) { accepting = false; } }
 
     private void execute(TaskRecord task) {
         TaskStage stage = TaskStage.MATERIAL_CHECK;

@@ -34,6 +34,7 @@ public class TaskWorker implements SmartLifecycle {
         if (running) return;
         // Recovery must commit before the first queue poll. Failure here fails startup rather than serving an unrecovered worker.
         state.failRunning("SERVICE_RESTARTED", "服务重启导致制作中断");
+        execution.startAccepting();
         executor = Executors.newSingleThreadScheduledExecutor(task -> {
             var thread = new Thread(task, "asset-task-worker"); thread.setDaemon(true); return thread;
         });
@@ -49,6 +50,7 @@ public class TaskWorker implements SmartLifecycle {
 
     @Override
     public synchronized void stop() {
+        execution.stopAccepting();
         running = false;
         if (executor == null) return;
         executor.shutdown();
