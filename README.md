@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0～P5 已完成：Java／MySQL 后台闭环及正式前端的模板广场、注册登录、动态上传、提交与连续制作。浏览器已跑通注册→上传→连续提交→结果预览；详情记录和个人历史已接入 Java。
+P0～P6 已完成：Java／MySQL 后台闭环、正式模板／认证／上传／提交页面，以及多任务独立跟踪、查询异常恢复、终态停止轮询、个人历史与刷新恢复。浏览器已跑通连续制作、分页筛选、临时网络故障恢复、用户切换及结果预览。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)及 [P5 验证记录](docs/p5-verification.md)。P6 所需的共享任务跟踪／历史基础已有实现，完整 P6 专项验收仍待执行，P7～P9 集中回归、CI 与最终交付尚未完成。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)、[P5](docs/p5-verification.md)及 [P6 验证记录](docs/p6-verification.md)。P7～P9 集中回归、CI 与最终交付尚未完成。
 
 ## 技术版本
 
@@ -40,7 +40,7 @@ compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
 compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 compose.p3.yaml     P3 实际上传与保留卷重建检查
 compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
-compose.frontend.yaml 容器内前端 lint／类型／49 项测试，无需启动数据库
+compose.frontend.yaml 容器内前端 lint／类型／68 项测试，无需启动数据库
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -120,13 +120,13 @@ backend/:
   ./mvnw -B verify
 ```
 
-P5 已通过前端 9 文件、49 项测试，以及 lint、类型检查和生产构建。只运行前端检查的容器命令如下，不需要 Java／MySQL：
+P6 已通过前端 12 文件、68 项测试，以及 lint、类型检查和生产构建（P5 当时为 49 项）。只运行前端检查的容器命令如下，不需要 Java／MySQL：
 
 ```sh
 docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
 ```
 
-覆盖 Cookie／CSRF、身份和旧响应隔离、上传竞争、结果未知时原键重试、连续任务及基础查询生命周期。GitHub Actions 在 P8 配置，当前没有完整 CI。
+覆盖 Cookie／CSRF、身份和旧响应隔离、上传竞争、结果未知时原键重试、多任务／超时隔离、跨首屏恢复、终态同步、无任务停止轮询、筛选分页及预览。GitHub Actions 在 P8 配置，当前没有完整 CI。
 
 ## P1 数据与真实数据库验证
 
@@ -190,10 +190,12 @@ P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤�
 
 首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当前 98 项通过。详细缺陷复现、19 项源码映射和本轮 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，完整复现与边界见[任务说明](docs/tasks.md)。
 
-## P5 前端完成与后续边界
+## P5～P6 前端与后续边界
 
-- P0～P5 已完成，M1 后端闭环及 M2 浏览器注册、上传、连续提交、预览已跑通，逐项见 [P5 记录](docs/p5-verification.md)。
-- 为满足 P5-10／12，已有共享任务跟踪、个人历史及基本刷新恢复；P6 仍需按完整专项矩阵验收，随后 P7～P9 集中回归、CI 和交付。
+- P0～P6 已完成，M1 后端闭环、M2 浏览器闭环及 P6 状态可靠性专项均有证据，见 [P5](docs/p5-verification.md)、[P6 记录](docs/p6-verification.md)。
+- 每个未完成任务独立查询；失败请求保留任务数据并暂停，提供恢复操作；详情、近期及分页发现的终态统一同步历史和数量，迟到旧阶段不能倒退。终态或无任务时不定时轮询，刷新从 Java 恢复。
+- 本次额外修复近期查询先发现终态时漏刷新历史、迟到阶段倒退及筛选总数缩小时页码不可达；新增测试先在 P5 旧代码复现相关缺陷，再验证当前版本。
+- P7～P9 的集中回归、CI 和完整交付清单继续按计划执行；本站无待处理任务时，不自动发现其他浏览器新增任务，可手动刷新。
 - P0 探针不替代真实业务闭环；重启中断已由 P4 实测，不支持执行中自动续跑。
 - 已按[参考布局](docs/reference-ui.md)实现深色模板网格、制作／记录双栏、窄屏单栏及键盘预览，优先基本可用性。
 - 未提交表单不跨刷新保留；已受理任务由 Java 恢复。替换／移除只清表单引用，无孤立文件自动清理。未知提交保留原 requestId 供手动安全重试，不自动重放写请求。

@@ -13,4 +13,12 @@ describe("owner-scoped task records", () => {
     registry.record({ ...task("a"), status: "RUNNING" }); expect(registry.getSnapshot()[0].status).toBe("SUCCEEDED");
   });
   it("clears every private record at an identity boundary", () => { const registry = new TaskRegistry(); registry.record(task()); registry.clear(); expect(registry.getSnapshot()).toEqual([]); });
+  it("does not regress an observed phase when an older discovery response arrives", () => {
+    const registry = new TaskRegistry();
+    registry.record({ ...task("a"), status: "RUNNING", currentStage: "GENERATE" });
+    registry.record(task("a")); registry.record({ ...task("a"), status: "RUNNING", currentStage: "MATERIAL_CHECK" });
+    expect(registry.getSnapshot()[0]).toMatchObject({ status: "RUNNING", currentStage: "GENERATE" });
+    registry.record({ ...task("a"), status: "RUNNING", currentStage: "FINALIZE" });
+    expect(registry.getSnapshot()[0].currentStage).toBe("FINALIZE");
+  });
 });

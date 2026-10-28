@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/components/providers";
 import { isTerminal } from "./registry";
@@ -21,6 +21,24 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const enabled = auth.status === "ready" && !!auth.user;
   const userId = auth.user?.id ?? "anonymous";
   const unfinished = tasks.filter(task => !isTerminal(task));
+  const synchronized = useRef({ owner: userId, terminalIds: new Set<string>() });
+  useEffect(() => {
+    if (synchronized.current.owner !== userId) synchronized.current = { owner: userId, terminalIds: new Set() };
+    if (!enabled) { synchronized.current.terminalIds.clear(); return; }
+    let completed = false;
+    for (const task of tasks) {
+      if (!isTerminal(task) || synchronized.current.terminalIds.has(task.id)) continue;
+      synchronized.current.terminalIds.add(task.id);
+      client.setQueryData(["tasks", userId, "detail", task.id], task);
+      completed = true;
+    }
+    // A terminal can arrive through detail, recent history, or a paged history response.
+    // Synchronize after publication so discovery paths cannot bypass completion invalidation.
+    if (completed) {
+      void client.invalidateQueries({ queryKey: ["tasks", userId, "history"] });
+      void client.invalidateQueries({ queryKey: ["tasks", userId, "recent"] });
+    }
+  }, [tasks, userId, enabled, client]);
   const active = useQuery({
     queryKey: ["tasks", userId, "active"], enabled,
     queryFn: async ({ signal }) => {
@@ -42,10 +60,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     queryKey: ["tasks", userId, "detail", task.id], enabled,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const scope = api.scope; const result = await api.request<TaskDto>(`/api/tasks/${encodeURIComponent(task.id)}`, { signal });
-      if (scope === api.scope && registry.record(result)) {
-        void client.invalidateQueries({ queryKey: ["tasks", userId, "history"] });
-        void client.invalidateQueries({ queryKey: ["tasks", userId, "recent"] });
-      }
+      if (scope === api.scope) registry.record(result);
       return result;
     },
     retry: false as const, staleTime: 0,

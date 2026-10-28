@@ -23,6 +23,9 @@ function HistoryContent() {
       return result;
     },
   });
+  const lastPage = history.data ? Math.max(1, Math.ceil(history.data.total / 12)) : page;
+  // Completion can shrink a filtered collection. Adjust this component before committing an unreachable page.
+  if (page > lastPage) setPage(lastPage);
   if (auth.status === "loading" || auth.status === "changing") return <Loading text="确认账户并加载作品…" />;
   if (!auth.user) return <Empty title="登录后查看你的作品"><p className="muted">个人记录、制作进度与结果会一直保存在账户中。</p><Link href="/login?returnTo=%2Ftasks" className="button primary">前往登录</Link></Empty>;
   if (auth.status === "error") return <ErrorPanel error={auth.error} title="账户状态暂未确认" />;

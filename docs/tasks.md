@@ -1,6 +1,6 @@
 # 后台制作、查询与生命周期
 
-P4 提供 Java API 的完整制作闭环。任务由 MySQL 保存并排队，由单个 Java 后台线程处理；Next.js 提供页面并转发接口。页面关闭或停止查询不取消制作。接口字段见 [API 契约](api.md)，上传及存储限制见 [上传说明](uploads.md)。P5 已提供提交、连续制作和记录／历史基础，使用方式见[前端说明](frontend.md)；完整 P6 专项验收待执行。
+P4 提供 Java API 的完整制作闭环。任务由 MySQL 保存并排队，由单个 Java 后台线程处理；Next.js 提供页面并转发接口。页面关闭或停止查询不取消制作。接口字段见 [API 契约](api.md)，上传及存储限制见 [上传说明](uploads.md)。P5～P6 已完成提交、连续制作、多任务／历史及查询恢复，使用方式见[前端说明](frontend.md)，逐项证据见[P6 验证](p6-verification.md)。
 
 ## 受理与幂等
 
@@ -84,7 +84,7 @@ docker compose up -d --force-recreate --no-deps --wait backend
 - `GET /api/tasks/{id}`：本人任务及固定顺序的三个步骤。历史、详情与步骤在同一个只读事务快照中读取。
 - `GET /api/tasks/{id}/result`：本人 SUCCEEDED 才能读取，返回实际 PNG／JPEG、inline、nosniff、no-store。未完成、失败、缺文件或非本人均为 404。
 
-终态不会因查询而改变。active 中消失不等于成功，P6 仍需读取该任务详情。只凭 HTTP 暂时失败不能把 TaskDto 改成 FAILED。
+终态不会因查询而改变。active 中消失不等于成功，P6 已通过逐任务详情获取真实终态。HTTP 暂时失败时保留 TaskDto、单独显示查询错误并提供恢复入口，不将其改成 FAILED。
 
 ## 独立容器验证
 
