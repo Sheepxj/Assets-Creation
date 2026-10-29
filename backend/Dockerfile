@@ -1,4 +1,5 @@
 FROM maven:3.9.16-eclipse-temurin-21 AS build
+ARG MAVEN_CACHE_ID=assets-creation-maven
 WORKDIR /workspace/backend
 COPY backend/.mvn .mvn
 COPY backend/mvnw backend/pom.xml ./
@@ -6,7 +7,7 @@ RUN chmod +x mvnw
 COPY backend/src src
 COPY database /workspace/database
 COPY demo-assets /workspace/demo-assets
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -ntp verify
+RUN --mount=type=cache,id=${MAVEN_CACHE_ID},target=/root/.m2 ./mvnw -B -ntp verify
 
 FROM eclipse-temurin:21.0.12_8-jre-jammy AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y curl && rm -rf /var/lib/apt/lists/* \

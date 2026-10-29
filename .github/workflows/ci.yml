@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend checks and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: node:22.23.4-bookworm-slim
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-22.23.4-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-22.23.4-npm-
+      - name: Toolchain
+        run: |
+          node --version
+          npm --version
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Behavior tests
+        run: npm test -- --run
+      - name: Production build
+        run: npm run build
+
+  backend:
+    name: Java tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: maven:3.9.16-eclipse-temurin-21
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.4.13
+        env:
+          MYSQL_DATABASE: assets_creation
+          MYSQL_USER: assets_app
+          MYSQL_PASSWORD: ci-app-password
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          TZ: UTC
+        options: >-
+          --health-cmd "MYSQL_PWD=ci-app-password mysql --protocol=TCP -h 127.0.0.1 -uassets_app assets_creation -e 'SELECT 1'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      DATABASE_URL: jdbc:mysql://mysql:3306/assets_creation?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+      DATABASE_USERNAME: assets_app
+      DATABASE_PASSWORD: ci-app-password
+      RUN_DATABASE_TESTS: "true"
+      STORAGE_ROOT: /tmp/assets-ci-storage
+      TZ: UTC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Cache Maven downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-java-21-maven-${{ hashFiles('backend/pom.xml', 'backend/.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-java-21-maven-
+      - name: Toolchain
+        run: |
+          java -version
+          sh ./mvnw --version
+      - name: Unit and MySQL tests, verify and package
+        run: sh ./mvnw -B -ntp -Dmaven.repo.local="$HOME/.m2/repository" verify
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: java-test-reports
+          path: backend/target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7

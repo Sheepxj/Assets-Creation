@@ -48,6 +48,8 @@ Java 维护 Cookie 会话，默认 JSESSIONID、HttpOnly、SameSite=Lax、30 分
 | POST /api/auth/logout | 登录，需 CSRF | 204，无响应体 | P2 |
 | GET /api/auth/me | 登录 | 200，UserDto；未登录 401 | P2 |
 
+P8 加强就绪语义：启动恢复尚未完成或应用停止接流时，health 返回 503／SERVICE_NOT_READY；进入 Spring Boot ACCEPTING_TRAFFIC 后才检查数据库并返回 UP。数据库不可用为 503／DATABASE_UNAVAILABLE。响应不包含连接地址或凭据。就绪事件顺序依据 [Spring Boot 3.5 官方说明](https://docs.spring.io/spring-boot/3.5/reference/features/spring-application.html)。
+
 Credentials：`{ "username": "demo_a", "password": "example-password" }`。
 
 UserDto：`{ "id": "user-id", "username": "demo_a" }`，不返回密码哈希。
