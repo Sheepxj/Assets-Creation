@@ -6,11 +6,15 @@ import java.util.concurrent.TimeUnit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sheepxj.assets.storage.FileStorage;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class TaskWorkerTest {
+    @AfterEach void noWorkerThreadSurvivesItsTest() {
+        assertTrue(Thread.getAllStackTraces().keySet().stream().noneMatch(thread -> thread.isAlive() && thread.getName().equals("asset-task-worker")));
+    }
     @Test void shutdownDuringPollMustNotClaimAnotherTask() throws Exception {
         var state = mock(TaskStateStore.class);
         var entered = new CountDownLatch(1); var release = new CountDownLatch(1);

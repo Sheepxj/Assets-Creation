@@ -4,9 +4,9 @@ Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题
 
 ## 当前进度
 
-P0～P6 已完成：Java／MySQL 后台闭环、正式模板／认证／上传／提交页面，以及多任务独立跟踪、查询异常恢复、终态停止轮询、个人历史与刷新恢复。浏览器已跑通连续制作、分页筛选、临时网络故障恢复、用户切换及结果预览。
+P0～P7 已完成：Java／MySQL 后台闭环、正式页面、多任务／历史／恢复，以及核心自动化回归。当前 Java 101 项、前端 74 项测试全部通过，静态检查与生产构建成功。浏览器演示证据保留在 P5～P6 记录。
 
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)、[P5](docs/p5-verification.md)及 [P6 验证记录](docs/p6-verification.md)。P7～P9 集中回归、CI 与最终交付尚未完成。
+逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)、[P5](docs/p5-verification.md)、[P6](docs/p6-verification.md)及 [P7 验证记录](docs/p7-verification.md)。P8～P9 容器成品／CI 闭环与最终交付尚未完成。
 
 ## 技术版本
 
@@ -40,7 +40,7 @@ compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
 compose.p2.yaml     P2 实际 HTTP 与会话重启检查
 compose.p3.yaml     P3 实际上传与保留卷重建检查
 compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
-compose.frontend.yaml 容器内前端 lint／类型／68 项测试，无需启动数据库
+compose.frontend.yaml 容器内前端 lint／类型／74 项测试，无需启动数据库
 .env.example        无真实凭据的开发演示配置
 ```
 
@@ -120,7 +120,7 @@ backend/:
   ./mvnw -B verify
 ```
 
-P6 已通过前端 12 文件、68 项测试，以及 lint、类型检查和生产构建（P5 当时为 49 项）。只运行前端检查的容器命令如下，不需要 Java／MySQL：
+P7 已通过前端 14 文件、74 项测试，以及 lint、类型检查和生产构建（P5／P6 当时分别为 49／68 项）。只运行前端检查的容器命令如下，不需要 Java／MySQL：
 
 ```sh
 docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
@@ -144,9 +144,9 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项、首次 P4 为 91 项通过。P4 源码复核后当前完整组为 **98 项全部通过，0 失败、0 错误、0 跳过**；增加关闭竞争、真实阶段异常及三阶段恢复／终态保护覆盖。
+P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项、首次 P4 为 91 项，P4 源码复核后为 98 项。P7 当前完整组为 **101 项全部通过，0 失败、0 错误、0 跳过**；补齐执行阻塞时受理、未提交任务不可领取及终态查询不写状态的直接断言。
 
-普通镜像构建没有运行中的数据库，执行 40 项、报告跳过 54 项；被禁用的参数化集成测试按方法计数，完整启用后总数是 98。使用上述服务设置 RUN_DATABASE_TESTS=true 才运行完整组，不能把跳过当作通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
+普通后端镜像构建没有运行中的数据库，不执行数据库集成组；禁用参数化测试时报告按方法计数。须用上述专用服务设置 RUN_DATABASE_TESTS=true 才得到完整 101 项结果，不能把 skip 当通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
 
 已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
 
@@ -188,14 +188,15 @@ P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤�
 
 正常关闭先停止领取、允许当前任务在窗口内完成；要完整观察可用 `docker compose stop -t 25 backend`。启动时遗留 RUNNING 与执行中步骤变成 FAILED／SERVICE_RESTARTED，原因“服务重启导致制作中断”；QUEUED 继续、终态不变。不续跑执行中任务，不支持多后端共同消费。
 
-首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当前 98 项通过。详细缺陷复现、19 项源码映射和本轮 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，完整复现与边界见[任务说明](docs/tasks.md)。
+首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当时为 98 项。P7 完整组现为 101 项。详细缺陷复现、19 项源码映射和历史 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，当前自动化见[P7 验证](docs/p7-verification.md)，复现与边界见[任务说明](docs/tasks.md)。
 
-## P5～P6 前端与后续边界
+## P5～P7 前端、回归与后续边界
 
-- P0～P6 已完成，M1 后端闭环、M2 浏览器闭环及 P6 状态可靠性专项均有证据，见 [P5](docs/p5-verification.md)、[P6 记录](docs/p6-verification.md)。
+- P0～P7 已完成，M1 后端闭环、M2 浏览器闭环、P6 状态专项与 P7 自动化回归均有证据，见 [P5](docs/p5-verification.md)、[P6](docs/p6-verification.md)、[P7 记录](docs/p7-verification.md)。
 - 每个未完成任务独立查询；失败请求保留任务数据并暂停，提供恢复操作；详情、近期及分页发现的终态统一同步历史和数量，迟到旧阶段不能倒退。终态或无任务时不定时轮询，刷新从 Java 恢复。
-- 本次额外修复近期查询先发现终态时漏刷新历史、迟到阶段倒退及筛选总数缩小时页码不可达；新增测试先在 P5 旧代码复现相关缺陷，再验证当前版本。
-- P7～P9 的集中回归、CI 和完整交付清单继续按计划执行；本站无待处理任务时，不自动发现其他浏览器新增任务，可手动刷新。
+- P6 修复近期查询先发现终态时漏刷新历史、迟到阶段倒退及筛选总数缩小时页码不可达；当时新增测试先在 P5 旧代码复现相关缺陷，再验证修复。
+- P7 对 14 个 BE／11 个 FE 场景逐项核对，测试先卸载／清缓存再还原假时钟；Worker 线程、JDBC 活动连接及四个连接池关闭均有检查。测试数据库最终仅保留种子，无任务或素材残留。
+- P8～P9 的 CI、容器成品联调和最终交付继续按计划执行；本站无待处理任务时，不自动发现其他浏览器新增任务，可手动刷新。
 - P0 探针不替代真实业务闭环；重启中断已由 P4 实测，不支持执行中自动续跑。
 - 已按[参考布局](docs/reference-ui.md)实现深色模板网格、制作／记录双栏、窄屏单栏及键盘预览，优先基本可用性。
 - 未提交表单不跨刷新保留；已受理任务由 Java 恢复。替换／移除只清表单引用，无孤立文件自动清理。未知提交保留原 requestId 供手动安全重试，不自动重放写请求。

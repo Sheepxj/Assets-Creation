@@ -22,6 +22,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.*;
 import org.springframework.test.context.*;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.*;
 import org.springframework.test.web.servlet.*;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @EnabledIfEnvironmentVariable(named = "RUN_DATABASE_TESTS", matches = "true")
 class TaskIntegrationTest {
     private static Path root;
@@ -45,6 +47,7 @@ class TaskIntegrationTest {
     @Autowired TaskExecutionService execution;
     @Autowired TaskStateStore state;
     @Autowired FileStorage files;
+    @Autowired org.mybatis.spring.SqlSessionTemplate sql;
     @MockitoBean TaskConfiguration.Delay delay;
     @MockitoSpyBean TaskStepMapper stepMapper;
     @MockitoSpyBean TaskMapper taskMapper;
@@ -66,6 +69,7 @@ class TaskIntegrationTest {
         jdbc.update("DELETE FROM tasks WHERE user_id=?", userId);
         jdbc.update("DELETE FROM assets WHERE user_id=?", userId);
         jdbc.update("DELETE FROM users WHERE id=?", userId);
+        assertEquals(0, ((com.zaxxer.hikari.HikariDataSource) jdbc.getDataSource()).getHikariPoolMXBean().getActiveConnections(), "A test must return its JDBC connections");
     }
     @AfterAll static void cleanTemporaryFiles() throws Exception {
         if (root != null) try (var paths = Files.walk(root)) { for (var path : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path); }
@@ -83,6 +87,64 @@ class TaskIntegrationTest {
         assertEquals("QUEUED", detail(id(task)).get("status").asText());
         mvc.perform(get("/api/tasks/" + id(task) + "/result").session(user.cookie)).andExpect(status().isNotFound());
         verifyNoInteractions(delay);
+        verify(taskMapper, never()).transition(any(), any(), any());
+        verify(stepMapper, never()).transition(any(), any());
+    }
+
+    @Test void blockedExecutionDoesNotBlockAcceptanceAndQueueOrderIsStable() throws Exception {
+        String material = asset();
+        var first = create("coastal-memory", List.of(material), UUID.randomUUID().toString());
+        var entered = new CountDownLatch(1); var release = new CountDownLatch(1);
+        doAnswer(call -> { entered.countDown(); assertTrue(release.await(5, TimeUnit.SECONDS)); return null; }).when(delay).pause(anyLong());
+        try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+            var executing = pool.submit(execution::runNextTask);
+            try {
+                assertTrue(entered.await(3, TimeUnit.SECONDS));
+                // This future must return while the earlier task is still held at its first stage.
+                var accepted = pool.submit(() -> create("coastal-memory", List.of(material), UUID.randomUUID().toString())).get(3, TimeUnit.SECONDS);
+                assertFalse(executing.isDone()); assertEquals("QUEUED", accepted.get("status").asText());
+                assertEquals(3, accepted.get("steps").size()); assertEquals("RUNNING", detail(id(first)).get("status").asText());
+                assertFalse(execution.runNextTask()); assertEquals("QUEUED", detail(id(accepted)).get("status").asText());
+                release.countDown(); assertTrue(executing.get(3, TimeUnit.SECONDS));
+                assertEquals("SUCCEEDED", detail(id(first)).get("status").asText());
+                assertEquals("QUEUED", detail(id(accepted)).get("status").asText());
+                assertTrue(execution.runNextTask()); var secondDone = detail(id(accepted));
+                assertEquals("SUCCEEDED", secondDone.get("status").asText());
+                assertFalse(java.time.Instant.parse(secondDone.get("startedAt").asText()).isBefore(java.time.Instant.parse(detail(id(first)).get("finishedAt").asText())));
+            } finally { release.countDown(); executing.get(3, TimeUnit.SECONDS); }
+        }
+    }
+
+    @Test void workerCannotClaimAnUncommittedPartialSubmission() throws Exception {
+        String material = asset(); var entered = new CountDownLatch(1); var release = new CountDownLatch(1);
+        doAnswer(call -> {
+            var step = (TaskStepRecord) call.getArgument(0);
+            if (step.stage() == TaskStage.FINALIZE) { entered.countDown(); assertTrue(release.await(5, TimeUnit.SECONDS)); }
+            return sql.insert(TaskStepMapper.class.getName() + ".insert", step);
+        }).when(stepMapper).insert(any());
+        try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+            var creating = pool.submit(() -> create("coastal-memory", List.of(material), UUID.randomUUID().toString()));
+            try {
+                assertTrue(entered.await(3, TimeUnit.SECONDS));
+                assertEquals(0, countTasks()); assertFalse(execution.runNextTask()); verifyNoInteractions(delay);
+                release.countDown(); var accepted = creating.get(3, TimeUnit.SECONDS);
+                assertEquals(3, accepted.get("steps").size()); assertEquals("QUEUED", accepted.get("status").asText());
+                assertTrue(execution.runNextTask()); assertEquals("SUCCEEDED", detail(id(accepted)).get("status").asText());
+            } finally { release.countDown(); creating.get(3, TimeUnit.SECONDS); }
+        }
+    }
+
+    @Test void terminalHistoryAndResultQueriesNeverWriteTaskOrStepState() throws Exception {
+        String material = asset(); var success = create("coastal-memory", List.of(material), UUID.randomUUID().toString()); execution.runNextTask();
+        var failed = create("coastal-memory", List.of(material), UUID.randomUUID().toString()); snapshot(id(failed), "GENERATE"); execution.runNextTask();
+        var done = detail(id(success)); var stopped = detail(id(failed));
+        clearInvocations(taskMapper, stepMapper, delay);
+        for (int i = 0; i < 4; i++) {
+            assertEquals(done, detail(id(success))); assertEquals(stopped, detail(id(failed)));
+            getJson("/api/tasks"); getJson("/api/tasks/active");
+            mvc.perform(get(done.get("resultUrl").asText()).session(user.cookie)).andExpect(status().isOk());
+        }
+        verify(taskMapper, never()).transition(any(), any(), any()); verify(stepMapper, never()).transition(any(), any()); verifyNoInteractions(delay);
     }
 
     @Test void successfulStepsAreObservableOutsideTransactionsAndResultIsPrivate() throws Exception {

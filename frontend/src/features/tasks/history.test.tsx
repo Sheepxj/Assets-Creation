@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useEffect } from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { Providers } from "@/components/providers";
+import { renderApp } from "@/test/render-app";
 import { jsonResponse } from "@/test/fixtures";
 import { finished, installTaskApi, page, running, settle, TaskProbe } from "@/test/task-support";
 import { History } from "./history";
@@ -24,7 +24,7 @@ it("paginates Java history without stopping tracking of a task on another page",
       return jsonResponse(page(records.slice((number - 1) * size, number * size), records.length, number, size));
     }
   });
-  render(<Providers><History /></Providers>); await settle();
+  renderApp(<><History /></>); await settle();
   expect(screen.getByText("第 1 页 · 共 26 条")).toBeInTheDocument(); expect(screen.queryByRole("article", { name: "任务 old 制作中" })).not.toBeInTheDocument();
   const count = fetch.mock.calls.filter(([path]) => path === "/api/tasks/old").length;
   fireEvent.click(screen.getByRole("button", { name: "下一页" })); await settle();
@@ -45,7 +45,7 @@ it("a terminal discovered in recent records refreshes the selected history filte
     if (path === "/api/tasks?page=1&pageSize=20") return jsonResponse(page([completed ? finished("a") : running("a")], 1, 1, 20));
     if (path.startsWith("/api/tasks?")) return jsonResponse(page(path.includes("status=SUCCEEDED") ? completed ? [finished("a")] : [] : [running("a")]));
   });
-  render(<Providers><CaptureQueries /><History /></Providers>); await settle();
+  renderApp(<><CaptureQueries /><History /></>); await settle();
   fireEvent.change(screen.getByLabelText("任务状态"), { target: { value: "SUCCEEDED" } }); await settle(); expect(screen.getByText("这里还没有作品")).toBeInTheDocument();
   const detailCalls = fetch.mock.calls.filter(([path]) => path === "/api/tasks/a").length;
   completed = true;
@@ -59,7 +59,7 @@ it("a terminal discovered in recent records refreshes the selected history filte
 it("keeps existing history on a failed refresh and recovers only through explicit retry", async () => {
   let unavailable = false;
   const fetch = installTaskApi(path => path === "/api/tasks/active" ? jsonResponse([]) : path === "/api/tasks?page=1&pageSize=20" ? jsonResponse(page([finished("a")])) : path.startsWith("/api/tasks?") ? unavailable ? jsonResponse({ code: "UNAVAILABLE", message: "历史暂不可用" }, 503) : jsonResponse(page([finished("a")])) : undefined);
-  render(<Providers><History /></Providers>); await settle();
+  renderApp(<><History /></>); await settle();
   unavailable = true; fireEvent.click(screen.getByRole("button", { name: "刷新记录" })); await settle();
   expect(screen.getByText("记录暂时无法更新，已保留上次数据")).toBeInTheDocument(); expect(screen.getByRole("article", { name: "任务 a 制作完成" })).toBeInTheDocument();
   const before = fetch.mock.calls.length; await act(async () => { await vi.advanceTimersByTimeAsync(6000); }); await settle(); expect(fetch.mock.calls).toHaveLength(before);
@@ -78,7 +78,7 @@ it("returns to an existing page when completion shrinks the filtered collection"
       return jsonResponse(page(values.slice((number - 1) * size, number * size), values.length, number, size));
     }
   });
-  render(<Providers><History /></Providers>); await settle();
+  renderApp(<><History /></>); await settle();
   fireEvent.change(screen.getByLabelText("任务状态"), { target: { value: "RUNNING" } }); await settle();
   fireEvent.click(screen.getByRole("button", { name: "下一页" })); await settle(); expect(screen.getByText("第 2 页 · 共 13 条")).toBeInTheDocument();
   completed = true; fireEvent.click(screen.getByRole("button", { name: "刷新记录" })); await settle();
@@ -96,7 +96,7 @@ it("clears old owner cache and resets page and status when switching users", asy
       return jsonResponse(page(switched ? [] : Array.from({ length: 12 }, (_, i) => finished(`a-${number}-${i}`)), switched ? 0 : 24, number, size));
     }
   });
-  render(<Providers><CaptureQueries /><History /><TaskProbe /></Providers>); await settle();
+  renderApp(<><CaptureQueries /><History /><TaskProbe /></>); await settle();
   fireEvent.change(screen.getByLabelText("任务状态"), { target: { value: "SUCCEEDED" } }); await settle();
   fireEvent.click(screen.getByRole("button", { name: "下一页" })); await settle();
   expect(screen.getByText("第 2 页 · 共 24 条")).toBeInTheDocument();

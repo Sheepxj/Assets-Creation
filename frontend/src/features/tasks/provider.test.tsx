@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { Providers } from "@/components/providers";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import { renderApp } from "@/test/render-app";
 import { TasksPanel } from "./cards";
 import { jsonResponse, task } from "@/test/fixtures";
 import type { TaskDto } from "@/lib/api/contracts";
@@ -23,7 +23,7 @@ it("tracks jobs independently, pauses only a failed query, and stops timers at t
     return Promise.resolve(jsonResponse({ items: [a, b], total: 2, page: 1, pageSize: 20 }));
   });
   vi.stubGlobal("fetch", fetch);
-  render(<Providers><TasksPanel /></Providers>); await settle();
+  renderApp(<><TasksPanel /></>); await settle();
   const cardA = screen.getByRole("article", { name: "任务 A 等待处理" });
   expect(within(cardA).getByText("暂时无法更新，已保留上次任务状态。")).toBeInTheDocument();
   const aCalls = () => fetch.mock.calls.filter(([path]) => path === "/api/tasks/a").length;

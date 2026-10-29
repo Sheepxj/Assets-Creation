@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Providers } from "@/components/providers";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderApp } from "@/test/render-app";
 import { AuthForm } from "./form";
 import { deferred, jsonResponse } from "@/test/fixtures";
 
@@ -26,7 +26,7 @@ function fill(confirmation = "Password123!") {
 describe("registration page", () => {
   it("validates confirmation without sending credentials and keeps semantic labels", async () => {
     const fetch = backend(() => Promise.resolve(jsonResponse({ id: "new", username: "new_user" }, 201)));
-    render(<Providers><AuthForm mode="register" /></Providers>);
+    renderApp(<><AuthForm mode="register" /></>);
     const submit = await screen.findByRole("button", { name: "注册并开始创作" }); await waitFor(() => expect(submit).not.toBeDisabled());
     fill("different"); fireEvent.click(submit); await screen.findByText("两次输入的密码不一致");
     expect(fetch.mock.calls.some(([path]) => path === "/api/auth/register")).toBe(false);
@@ -34,7 +34,7 @@ describe("registration page", () => {
   });
   it("disables duplicate submission, automatically logs in and uses a safe return path", async () => {
     const pending = deferred<Response>(); const fetch = backend(() => pending.promise); const persist = vi.spyOn(Storage.prototype, "setItem");
-    render(<Providers><AuthForm mode="register" returnTo="/templates/travel-postcard" /></Providers>);
+    renderApp(<><AuthForm mode="register" returnTo="/templates/travel-postcard" /></>);
     const submit = await screen.findByRole("button", { name: "注册并开始创作" }); await waitFor(() => expect(submit).not.toBeDisabled());
     fill(); fireEvent.click(submit); await waitFor(() => expect(screen.getByRole("button", { name: "正在处理…" })).toBeDisabled());
     expect(fetch.mock.calls.filter(([path]) => path === "/api/auth/register")).toHaveLength(1);
@@ -45,7 +45,7 @@ describe("registration page", () => {
   });
   it("renders duplicate-username and server field errors", async () => {
     backend(() => Promise.resolve(jsonResponse({ code: "USERNAME_TAKEN", message: "用户名已被使用", fieldErrors: { username: "换一个用户名" } }, 409)));
-    render(<Providers><AuthForm mode="register" /></Providers>);
+    renderApp(<><AuthForm mode="register" /></>);
     const submit = await screen.findByRole("button", { name: "注册并开始创作" }); await waitFor(() => expect(submit).not.toBeDisabled());
     fill(); fireEvent.click(submit); await screen.findByText("用户名已被使用"); expect(screen.getByText("换一个用户名")).toBeInTheDocument();
   });

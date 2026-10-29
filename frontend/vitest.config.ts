@@ -10,5 +10,7 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     clearMocks: true,
     restoreMocks: true,
+    // Unmount and clear test caches before a file restores fake clocks or DOM shims.
+    sequence: { hooks: "list" },
   },
 });

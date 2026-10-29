@@ -6,11 +6,12 @@ import { deferred, template } from "@/test/fixtures";
 import type { TemplateDto } from "@/lib/api/contracts";
 import { Gallery } from "./gallery";
 import { TemplateDetail } from "./detail";
+import { trackQueries } from "@/test/query-clients";
 
 let api: ApiClient;
 vi.mock("@/components/providers", () => ({ useApp: () => ({ api, auth: { status: "ready", user: null } }) }));
 beforeEach(() => { api = new ApiClient(); });
-function show(child: React.ReactNode) { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{child}</QueryClientProvider>); }
+function show(child: React.ReactNode) { return render(<QueryClientProvider client={trackQueries(new QueryClient({ defaultOptions: { queries: { retry: false } } }))}>{child}</QueryClientProvider>); }
 describe("template screens", () => {
   it("does not display a previous category's late response", async () => {
     const travel = deferred<TemplateDto[]>(), portrait = deferred<TemplateDto[]>();
