@@ -1,5 +1,7 @@
 # 最终验收记录
 
+本文件保留 P9 历史验收证据。后续独立审查发现的三个前端边界问题及修复验证见[修复记录](audit-bugfix-verification.md)；下述历史场景通过不表示覆盖了所有边界输入。
+
 日期：2026-10-29（Asia/Shanghai）。对照[原题](../题目说明.md)、[定稿设计](superpowers/specs/2026-10-28-assets-creation-design.md)及[计划 P9](superpowers/plans/2026-10-28-assets-creation-implementation-plan.md)执行。业务代码基线为 `6b2415073bb0d5780d315eab5d24ec9fc8a74163`；P9 增加交付文档、容器内 API 示例及仅验收用访问日志配置，没有改业务行为。
 
 **AC-01～AC-18 均已执行并通过；R-01～R-14 和追加注册／队列恢复方案均有对应实现。** 最终仓库／ZIP 版本固定为交付标签 `delivery-2026-10-29`，完整 commit 和该版本 CI 随交付消息提供，可通过 `git rev-parse 'delivery-2026-10-29^{commit}'` 独立核对。未实施的范围及未验证环境在下文明确列出。

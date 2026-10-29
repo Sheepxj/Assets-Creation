@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiClient, ApiFailure } from "@/lib/api/client";
 import { SessionStore, safeReturnTo, validateCredentials } from "./session";
 import { deferred } from "@/test/fixtures";
+import { identityStorageKey } from "./identity-sync";
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 const userA = { id: "user-a", username: "demo_a" }, userB = { id: "user-b", username: "demo_b" };
 const credentials = { username: "demo_b", password: "Password123!" };
@@ -11,6 +14,43 @@ async function authenticated() {
   const clear = vi.fn(); const session = new SessionStore(api, clear); await session.restore(); clear.mockClear(); return { api, request, csrf, clear, session };
 }
 describe("identity lifecycle", () => {
+  it.each(["login", "register", "logout"] as const)("notifies other tabs after acknowledged %s without sharing the credentials", async mode => {
+    vi.stubGlobal("BroadcastChannel", undefined);
+    const { request, session } = await authenticated();
+    const disconnect = session.connect(); await session.restore();
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      request.mockResolvedValueOnce(mode === "logout" ? undefined : userB);
+      if (mode === "logout") await session.logout(); else await session.authenticate(mode, credentials);
+      expect(write).toHaveBeenCalledOnce();
+      expect(write).toHaveBeenCalledWith(identityStorageKey, expect.stringMatching(/^[0-9a-f-]{36}$/));
+    } finally { disconnect(); }
+  });
+  it("also invalidates other tabs when a login result is unknown", async () => {
+    vi.stubGlobal("BroadcastChannel", undefined);
+    const { request, session } = await authenticated();
+    const disconnect = session.connect(); await session.restore();
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      request.mockRejectedValueOnce(new ApiFailure(0, "NETWORK_ERROR", "offline"));
+      await expect(session.authenticate("login", credentials)).rejects.toThrow();
+      expect(write).toHaveBeenCalledOnce();
+    } finally { disconnect(); }
+  });
+  it("keeps private state revoked if another tab's identity cannot be confirmed, then recovers logout", async () => {
+    vi.stubGlobal("BroadcastChannel", undefined);
+    const { request, session, clear } = await authenticated();
+    const disconnect = session.connect(); await session.restore(); clear.mockClear();
+    try {
+      request.mockRejectedValueOnce(new ApiFailure(0, "NETWORK_ERROR", "offline"));
+      window.dispatchEvent(new StorageEvent("storage", { key: identityStorageKey, newValue: "changed" }));
+      await Promise.resolve(); await Promise.resolve();
+      expect(clear).toHaveBeenCalledOnce(); expect(session.getSnapshot()).toMatchObject({ user: null, status: "error" });
+      await expect(session.authenticate("login", credentials)).rejects.toMatchObject({ code: "AUTH_NOT_READY" });
+      request.mockRejectedValueOnce(new ApiFailure(401, "UNAUTHENTICATED", "logged out"));
+      await session.restore(); expect(session.getSnapshot()).toMatchObject({ user: null, status: "ready" });
+    } finally { disconnect(); }
+  });
   it.each(["BAD_CREDENTIALS", "USERNAME_TAKEN", "FORBIDDEN"])("preserves existing identity for %s", async code => {
     const { request, session, clear } = await authenticated(); request.mockRejectedValueOnce(new ApiFailure(code === "FORBIDDEN" ? 403 : 401, code, "error"));
     await expect(session.authenticate("login", credentials)).rejects.toMatchObject({ code });

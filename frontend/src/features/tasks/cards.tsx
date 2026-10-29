@@ -34,7 +34,7 @@ export function TasksPanel({ templateId }: { templateId?: string }) {
   return <section className="tasks-panel" aria-label="制作记录"><div className="section-heading"><div><h2>制作记录</h2><p className="muted">后台继续制作，创作不必停下来。</p></div><button className="button subtle small" onClick={refresh} disabled={!auth.user || auth.status !== "ready"}>刷新</button></div>
     {auth.status === "loading" || auth.status === "changing" ? <Loading text="正在确认账户…" /> : !auth.user ? <Empty title="登录后查看你的制作记录"><p className="muted">每一次创作，都会保存在你的账户中。</p><Link className="button secondary" href={`/login?returnTo=${encodeURIComponent(templateId ? "/templates/" + templateId : "/tasks")}`}>前往登录</Link></Empty> : auth.status === "error" ? <p className="state-panel">请先重新确认账户状态。</p> : <>
       {discoveryError && <ErrorPanel error={discoveryError} title="记录更新暂停" retry={refresh} />}
-      {loading && !visible.length ? <Loading text="加载制作记录…" /> : !visible.length ? <Empty title="第一份灵感，从这里开始"><p className="muted">上传图片并提交后，进度和结果会出现在这里。</p></Empty> : <div className="task-grid">{visible.map(task => <TaskCard key={task.id} task={task} error={errors.get(task.id)} retry={() => retry(task.id)} />)}</div>}
+      {loading && !visible.length ? <Loading text="加载制作记录…" /> : !visible.length ? !discoveryError && <Empty title="第一份灵感，从这里开始"><p className="muted">上传图片并提交后，进度和结果会出现在这里。</p></Empty> : <div className="task-grid">{visible.map(task => <TaskCard key={task.id} task={task} error={errors.get(task.id)} retry={() => retry(task.id)} />)}</div>}
       <Link className="all-tasks-link" href="/tasks">查看全部作品 <span aria-hidden="true">→</span></Link>
     </>}
   </section>;

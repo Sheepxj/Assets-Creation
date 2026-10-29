@@ -1,5 +1,6 @@
 import { ApiClient, ApiFailure, isAborted, resultUnknown } from "@/lib/api/client";
 import type { Credentials, UserDto } from "@/lib/api/contracts";
+import { connectIdentitySync } from "./identity-sync";
 
 export interface SessionSnapshot {
   user: UserDto | null; status: "loading" | "ready" | "changing" | "error";
@@ -12,6 +13,7 @@ export class SessionStore {
   private listeners = new Set<() => void>();
   private operation = 0;
   private changing = false;
+  private identitySync: ReturnType<typeof connectIdentitySync> | null = null;
   constructor(readonly api: ApiClient, private clearPrivateState: () => void) {}
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getSnapshot = () => this.snapshot;
@@ -24,13 +26,23 @@ export class SessionStore {
     this.publish({ revision: this.snapshot.revision + 1 });
   }
   connect() {
+    const identitySync = connectIdentitySync(() => {
+      this.operation++; this.changing = false; this.boundary();
+      this.publish({ user: null, status: "loading", error: null, notice: null });
+      void this.restore();
+    });
+    this.identitySync = identitySync;
     this.api.onUnauthorized = () => {
       if (!this.snapshot.user) return;
       this.operation++; this.changing = false; this.boundary();
       this.publish({ user: null, status: "ready", error: null, notice: "登录已过期，请重新登录。后台制作会继续执行。" });
     };
     void this.restore();
-    return () => { this.operation++; this.api.onUnauthorized = null; this.api.resetScope(); };
+    return () => {
+      identitySync.dispose();
+      if (this.identitySync === identitySync) this.identitySync = null;
+      this.operation++; this.api.onUnauthorized = null; this.api.resetScope();
+    };
   }
   restore = async () => {
     if (this.changing) return;
@@ -62,6 +74,7 @@ export class SessionStore {
     let authenticated: UserDto | null = null;
     try {
       const user = await this.api.request<UserDto>(`/api/auth/${mode}`, { method: "POST", body: credentials });
+      this.identitySync?.publish();
       if (operation !== this.operation) throw new DOMException("Identity changed", "AbortError");
       if (!user || typeof user.id !== "string" || typeof user.username !== "string") throw new ApiFailure(200, "INVALID_RESPONSE", "账户响应无法确认，请重试");
       authenticated = user;
@@ -70,6 +83,7 @@ export class SessionStore {
       if (operation !== this.operation) throw new DOMException("Identity changed", "AbortError");
       this.publish({ user: authenticated, status: "ready", error: null, notice: null });
     } catch (error) {
+      if (resultUnknown(error)) this.identitySync?.publish();
       if (operation === this.operation && !isAborted(error)) {
         this.publish({ user: authenticated ?? previous, status: authenticated || resultUnknown(error) ? "error" : "ready", error: authenticated || resultUnknown(error) ? error as ApiFailure : null });
       }
@@ -84,12 +98,14 @@ export class SessionStore {
     let loggedOut = false;
     try {
       await this.api.request<void>("/api/auth/logout", { method: "POST" });
+      this.identitySync?.publish();
       if (operation !== this.operation) return;
       loggedOut = true;
       this.boundary();
       this.api.clearCsrf(); await this.api.csrf();
       if (operation === this.operation) this.publish({ user: null, status: "ready", error: null, notice: null });
     } catch (error) {
+      if (resultUnknown(error)) this.identitySync?.publish();
       if (operation === this.operation && !isAborted(error)) this.publish({ user: loggedOut ? null : this.snapshot.user, status: "error", error: error as ApiFailure });
     } finally { if (operation === this.operation) this.changing = false; }
   };

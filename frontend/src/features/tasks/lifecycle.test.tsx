@@ -5,11 +5,60 @@ import { renderApp } from "@/test/render-app";
 import { deferred, jsonResponse, task } from "@/test/fixtures";
 import { finished, installTaskApi, owner, page, running, settle, TaskProbe } from "@/test/task-support";
 import { TasksPanel } from "./cards";
+import { identityStorageKey } from "@/features/auth/identity-sync";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/tasks" }));
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); focusManager.setFocused(undefined); onlineManager.setOnline(true); });
 const tracked = () => JSON.parse(screen.getByLabelText("跟踪快照").textContent!);
+
+it("shows discovery failure without claiming the account is empty, then recovers to a confirmed empty state", async () => {
+  let unavailable = true;
+  installTaskApi(path => path === "/api/tasks/active" || path.startsWith("/api/tasks?")
+    ? unavailable ? jsonResponse({ code: "UNAVAILABLE", message: "记录请求故障" }, 503) : jsonResponse(path === "/api/tasks/active" ? [] : page([])) : undefined);
+  renderApp(<TasksPanel />); await settle();
+  expect(screen.getByText("记录请求故障")).toBeInTheDocument();
+  expect(screen.queryByText("第一份灵感，从这里开始")).not.toBeInTheDocument();
+  unavailable = false; fireEvent.click(screen.getByRole("button", { name: "重试" })); await settle();
+  expect(screen.getByText("第一份灵感，从这里开始")).toBeInTheDocument();
+  expect(screen.queryByText("记录请求故障")).not.toBeInTheDocument();
+});
+
+it("retains known cards during a discovery error without showing an empty state", async () => {
+  let unavailable = false;
+  installTaskApi(path => path === "/api/tasks/active" || path.startsWith("/api/tasks?")
+    ? unavailable ? jsonResponse({ code: "UNAVAILABLE", message: "记录请求故障" }, 503) : jsonResponse(path === "/api/tasks/active" ? [] : page([finished("known")])) : undefined);
+  renderApp(<TasksPanel />); await settle(); unavailable = true;
+  fireEvent.click(screen.getByRole("button", { name: "刷新" })); await settle();
+  expect(screen.getByText("记录请求故障")).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "任务 known 制作完成" })).toBeInTheDocument();
+  expect(screen.queryByText("第一份灵感，从这里开始")).not.toBeInTheDocument();
+});
+
+it("revalidates another tab's identity, clears A's cards and rejects late A responses before rendering B", async () => {
+  vi.stubGlobal("BroadcastChannel", undefined);
+  let switched = false;
+  const late = deferred<Response>(), me = deferred<Response>();
+  installTaskApi(path => {
+    if (path === "/api/auth/me") return switched ? me.promise : jsonResponse(owner);
+    if (path === "/api/tasks/active") return jsonResponse(switched ? [] : [running("a")]);
+    if (path === "/api/tasks/a") return late.promise;
+    if (path.startsWith("/api/tasks?")) return jsonResponse(page(switched ? [finished("b")] : [running("a")]));
+  });
+  renderApp(<TasksPanel />); await settle();
+  expect(screen.getByText("demo_a")).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "任务 a 制作中" })).toBeInTheDocument();
+  switched = true;
+  act(() => window.dispatchEvent(new StorageEvent("storage", { key: identityStorageKey, newValue: "another-tab" })));
+  expect(screen.queryByText("demo_a")).not.toBeInTheDocument();
+  expect(screen.queryByRole("article")).not.toBeInTheDocument();
+  await act(async () => { late.resolve(jsonResponse(finished("a"))); }); await settle();
+  expect(screen.queryByRole("article")).not.toBeInTheDocument();
+  await act(async () => { me.resolve(jsonResponse({ id: "owner-b", username: "demo_b" })); }); await settle();
+  expect(screen.getByText("demo_b")).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "任务 b 制作完成" })).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: /任务 a/ })).not.toBeInTheDocument();
+});
 
 it("a successful task keeps its result while another task independently progresses through its own stages", async () => {
   let stage: "MATERIAL_CHECK" | "GENERATE" | "FINALIZE" = "MATERIAL_CHECK";

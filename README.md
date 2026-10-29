@@ -8,6 +8,8 @@
 
 仓库：[Sheepxj/Assets-Creation](https://github.com/Sheepxj/Assets-Creation)。验收版本固定为标签 `delivery-2026-10-29`，可用 `git rev-parse 'delivery-2026-10-29^{commit}'` 取得完整 commit；交付消息同时列出完整 SHA 和该提交的 CI 链接。源码 ZIP 由这个提交的 Git archive 生成，不含运行数据或依赖缓存。
 
+2026-10-29 后续审查修复了跨标签页身份同步、记录错误与空状态混显、近期任务时间排序三个问题。修复位于当前 `master`，原交付标签和 ZIP 保留历史版本；使用修复版请检出 `origin/master` 或修复提交的完整 SHA，验证范围见[修复记录](docs/audit-bugfix-verification.md)。
+
 ## 快速启动
 
 需要 Docker 引擎和 Compose；无需宿主机 Node、Java、Maven，也无需手工建表或下载素材。在仓库根目录运行：

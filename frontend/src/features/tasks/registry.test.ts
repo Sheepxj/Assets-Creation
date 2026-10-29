@@ -2,6 +2,23 @@ import { describe, expect, it } from "vitest";
 import { task } from "@/test/fixtures";
 import { TaskRegistry } from "./registry";
 describe("owner-scoped task records", () => {
+  it("orders UTC timestamps by time across absent, variable and sub-millisecond fractions", () => {
+    const registry = new TaskRegistry();
+    for (const [id, time] of [
+      ["whole", "2026-10-29T04:00:00Z"],
+      ["half", "2026-10-29T04:00:00.500Z"],
+      ["micro", "2026-10-29T04:00:00.500001Z"],
+      ["nano", "2026-10-29T04:00:00.500001001Z"],
+      ["next", "2026-10-29T04:00:01Z"],
+    ]) registry.record({ ...task(id), createdAt: time });
+    expect(registry.getSnapshot().map(item => item.id)).toEqual(["next", "nano", "micro", "half", "whole"]);
+  });
+  it("uses descending IDs only when timestamps represent the same instant", () => {
+    const registry = new TaskRegistry();
+    registry.record({ ...task("a"), createdAt: "2026-10-29T04:00:00Z" });
+    registry.record({ ...task("b"), createdAt: "2026-10-29T04:00:00.000000Z" });
+    expect(registry.getSnapshot().map(item => item.id)).toEqual(["b", "a"]);
+  });
   it("keeps multiple jobs independent", () => {
     const registry = new TaskRegistry(); registry.record(task("a")); registry.record(task("b"));
     registry.record({ ...task("a"), status: "FAILED", currentStage: "GENERATE", errorMessage: "模拟失败" });
