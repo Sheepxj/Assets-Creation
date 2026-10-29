@@ -4,7 +4,9 @@
 
 本文是 P0 固定的前后端契约。业务由 Java 提供，浏览器通过 Next.js 同源 `/api` 转发访问。
 
-P0～P6 已实现基础工程、Java 业务 API、正式页面及多任务／历史／恢复，浏览器接入同源接口。认证用法见[认证说明](authentication.md)，图片限制及存储见[上传说明](uploads.md)，后台行为及模拟／重启演示见[任务说明](tasks.md)，页面及状态边界见[前端说明](frontend.md)。P6 逐项证据见[验证记录](p6-verification.md)。
+P0～P9 已完成，浏览器接入 Java 同源接口。认证用法见[认证说明](authentication.md)，图片限制及存储见[上传说明](uploads.md)，后台行为及模拟／重启演示见[任务说明](tasks.md)，页面及状态边界见[前端说明](frontend.md)。最终场景、版本和范围见[验收](acceptance.md)及[交付索引](delivery.md)。
+
+可运行请求示例为 [examples/api-demo.mjs](../examples/api-demo.mjs)，PowerShell 将源码通过 stdin 交给前端容器 Node 执行，命令见 README。使用公开 demo_a，完整走 CSRF→登录→刷新 CSRF→真实 JPEG 上传→202 创建→详情终态→图片读取→退出，输出真实 DTO 而不输出 Cookie／Token。P9 已实际验证，示例会新增素材与任务；下文 JSON 的示例 ID 需替换为运行时值。
 
 ## 2. 通用约定
 

@@ -1,220 +1,201 @@
 # 素材制作系统
 
-Next.js + Java + MySQL 的异步素材制作项目。需求见[题目说明](题目说明.md)，架构见[设计文档](docs/superpowers/specs/2026-10-28-assets-creation-design.md)，实施范围见[开发计划](docs/superpowers/plans/2026-10-28-assets-creation-implementation-plan.md)。
+一个可独立运行的素材制作网站：浏览 Java 提供的模板，注册／登录，上传图片并提交任务；Java 在后台按顺序完成素材检查、模拟生成和结果整理，用户可继续操作、查看个人历史及预览结果。
 
-## 当前进度
-
-P0～P8 已完成：Java／MySQL 后台闭环、正式页面、多任务／历史／恢复、核心自动化、容器成品及实际 CI。当前 Java 102 项、前端 76 项测试全部通过，静态检查与生产构建成功；冷构建、新卷启动和保留卷重建均有实际证据。
-
-逐项结果见 [P0](docs/p0-verification.md)、[P1](docs/p1-verification.md)、[P2](docs/p2-verification.md)、[P3](docs/p3-verification.md)、[P4 源码复查](docs/p4-current-source-review.md)、[P5](docs/p5-verification.md)、[P6](docs/p6-verification.md)、[P7](docs/p7-verification.md)及 [P8 验证记录](docs/p8-verification.md)。P9 最终全需求验收与提交材料待执行。
+**P0～P9 已完成。** 原题必需功能及用户确认的注册／重启方案均有实现与验收依据。生成使用预置图片，不调用真实 AI。最终范围、18 项验收与 14 项需求映射见 [验收记录](docs/acceptance.md)，交付文件与版本见 [交付索引](docs/delivery.md)。
 
 [![CI](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml/badge.svg)](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml)
 
-流水线在 push／pull_request 自动运行容器化检查，首次已确认通过的提交和实际日志见 [CI 说明](docs/ci.md)；提交版本对应状态以 Actions 的 head SHA 为准。
+仓库：[Sheepxj/Assets-Creation](https://github.com/Sheepxj/Assets-Creation)。验收版本固定为标签 `delivery-2026-10-29`，可用 `git rev-parse 'delivery-2026-10-29^{commit}'` 取得完整 commit；交付消息同时列出完整 SHA 和该提交的 CI 链接。源码 ZIP 由这个提交的 Git archive 生成，不含运行数据或依赖缓存。
 
-## 技术版本
+## 快速启动
 
-| 项目 | 固定版本 |
-| --- | --- |
-| Node.js / npm | 22.23.4 / 10.9.9，node:22.23.4-bookworm-slim |
-| Next.js / React | 16.4.3 / 19.3.1 |
-| TypeScript / ESLint | 5.9.3 / 9.39.4 |
-| Tailwind CSS / TanStack Query | 4.3.3 / 5.105.0 |
-| 前端测试工具 | Vitest 5.0.5、Testing Library 16.3.3、jest-dom 7.0.1、jsdom 30.1.3 |
-| Java / Maven | Java 21 / Maven 3.9.16；运行镜像 Temurin 21.0.12_8 |
-| Spring Boot / MyBatis Starter | 3.5.16 / 3.0.5 |
-| MySQL | 8.4.13 |
-
-前端直接依赖精确固定，完整依赖见 `frontend/package-lock.json`。Java 传递依赖由 Spring Boot 3.5.16 BOM 管理，MyBatis Starter 单独固定；Maven Wrapper 固定分发版本。
-
-兼容依据：[Next.js 安装要求](https://nextjs.org/docs/app/getting-started/installation)、[Spring Boot 3.5 系统要求](https://docs.spring.io/spring-boot/3.5/system-requirements.html)、[MyBatis 兼容表](https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/)。TypeScript 选用 5.9 系列，容器 Node 22 满足 Next.js 和测试工具要求。
-
-## 项目结构
-
-```text
-frontend/           App Router 页面、身份／上传／提交／任务状态、Java 同源转发及测试
-backend/            认证、模板／素材／任务 API、三步执行／恢复、存储、MyBatis 和测试
-database/           六表结构、幂等种子、只读检查和专用重建验证 SQL
-demo-assets/        6 张封面、6 张模拟结果、3 张上传示例及来源／哈希清单
-scripts/            容器内 P0／P2／P3／P4／P8 HTTP 与持久化检查
-docs/               API、参考图、阶段验证、设计和开发计划
-compose.yaml        正常运行的 Next.js、Java、MySQL 三服务
-compose.smoke.yaml  P0 smoke profile 与检查容器
-compose.p1.yaml     真实 MySQL 的 P1 集成测试容器
-compose.p2.yaml     P2 实际 HTTP 与会话重启检查
-compose.p3.yaml     P3 实际上传与保留卷重建检查
-compose.p4.yaml     P4 异步闭环、指定失败与停止／重启 HTTP 检查
-compose.p8.yaml     P8 新注册账户、完整任务与结果的重建快照检查
-compose.frontend.yaml 容器内前端 lint／类型／76 项测试，无需启动数据库
-.github/workflows/ci.yml push／pull_request 的前端与 Java／MySQL 容器检查
-.env.example        无真实凭据的开发演示配置
-```
-
-业务执行和持久化在 Java。Java 启动时执行数据库初始化并验证示例图片；数据库和素材说明见 [database/README.md](database/README.md)。后端 Docker 构建上下文为仓库根目录，以同时打包 database 和 demo-assets；请使用 Compose 或 `docker build -f backend/Dockerfile .`。
-
-## 构建与启动
-
-需要 Docker 引擎和 Compose，不需要宿主机 Node.js、Java 或 Maven。首次运行需要访问 Docker Hub、npm 和 Maven Central。在仓库根目录执行：
+需要 Docker 引擎和 Compose；无需宿主机 Node、Java、Maven，也无需手工建表或下载素材。在仓库根目录运行：
 
 ```sh
 docker compose up --build
 ```
 
-打开 [http://localhost:3000](http://localhost:3000) 浏览模板，注册或登录，进入详情上传并提交。可用 `demo_a`／`demo_b`，密码均为 `Demo123456!`；上传示例在 `demo-assets/samples/`。海岸假日只需一张图，受理后点击“开始下一次制作”可连续提交，原任务在右侧继续。导航“我的作品”查看本人历史，成功卡片打开结果预览，Escape 关闭。也可访问 [Java／MySQL 健康接口](http://localhost:3000/api/health)及[模板 API](http://localhost:3000/api/templates)。页面与状态说明见[前端说明](docs/frontend.md)。
+打开 [http://localhost:3000](http://localhost:3000)。可自行注册，或使用 `demo_a`／`demo_b`，密码均为 `Demo123456!`。上传示例为 `demo-assets/samples/portrait.png`、`landscape.jpg` 和 `collage.png`。首次构建需联网下载官方镜像及 npm／Maven 依赖；运行不依赖外部图片站或付费服务。
 
-可选复制 `.env.example` 为 `.env` 修改配置；不复制也可用本地演示默认值。示例口令仅供本地运行，外部部署前替换。
+可选复制 `.env.example` 为 `.env` 修改配置，不复制也可使用本地演示默认值。
 
 ```sh
-docker compose config
+docker compose config --quiet
+docker compose up --build -d --wait
 docker compose ps
-docker compose logs backend
+docker compose logs --tail 80 backend
 docker compose down
 ```
 
-`down` 保留数据卷；需要保留数据时不要使用 `--volumes`。只有前端端口向宿主机公开，Java 和 MySQL 使用容器网络。生产服务不挂载宿主机源码，Java／Next.js 使用非 root 用户；MySQL 就绪、Java 初始化与任务恢复完成后才依次启动。冷构建及完整隔离验收命令见[容器说明](docs/containers.md)。
+`down` 保留数据卷；不要用 `--volumes` 升级已有数据。MySQL 应用账户健康后 Java 初始化，完成遗留任务恢复后才就绪，Next.js 随后启动。只有前端公开 3000；浏览器同源 `/api` → Next.js 服务端 `http://backend:8080` → Java／MyBatis → `mysql:3306`。MySQL 与上传／结果文件分别使用 mysql-data、asset-data，生产服务不挂宿主机源码。
+
+## 技术版本与目录
+
+| 项目 | 固定版本 |
+| --- | --- |
+| Node.js／npm | 22.23.4／10.9.9 |
+| Next.js／React | 16.4.3／19.3.1，App Router |
+| TypeScript／ESLint | 5.9.3／9.39.4 |
+| Tailwind CSS／TanStack Query | 4.3.3／5.105.0 |
+| 前端测试 | Vitest 5.0.5、Testing Library 16.3.3、jest-dom 7.0.1、jsdom 30.1.3 |
+| Java／Maven | Java 21／Maven Wrapper 3.9.16；运行镜像 Temurin 21.0.12_8 |
+| Spring Boot／MyBatis Starter | 3.5.16／3.0.5 |
+| MySQL | 8.4.13 |
+
+前端完整依赖锁在 package-lock.json；Java 传递依赖由 Spring Boot BOM 管理，Wrapper 及镜像工具链固定。兼容依据见[设计方案](docs/superpowers/specs/2026-10-28-assets-creation-design.md)中的官方来源和已通过的构建。
+
+```text
+frontend/                 页面、身份／上传／多任务状态、同源代理及测试
+backend/                  Java API、认证、三步执行／恢复、MyBatis、文件存储及测试
+database/                 六表 schema.sql、幂等 seed.sql 和验证 SQL
+demo-assets/              六封面、六模拟结果、三上传示例及来源／哈希
+scripts/                  容器 HTTP 验证及原创图片生成器
+examples/api-demo.mjs      在前端容器运行的完整 API 请求示例
+docs/api.md               完整接口字段、枚举、错误、Cookie／CSRF
+docs/acceptance.md         AC-01～18、R-01～14、限制与投入
+docs/delivery.md           提交材料和评估顺序
+docs/operations.md         固定版本启动、备份恢复与回滚
+compose.yaml              Next.js／Java／MySQL 正常运行入口
+compose.frontend.yaml     前端静态检查与测试容器
+compose.p1.yaml            真实 MySQL 的完整 Java 测试容器
+compose.p2／p3／p4.yaml    认证、上传、任务／失败／重启 HTTP 检查
+compose.p8.yaml            账户、完整任务及文件持久化快照检查
+compose.p9.yaml            仅验收用的无凭据访问日志，正常启动不启用
+.github/workflows/ci.yml   push／pull_request 的容器化检查
+.env.example              无真实凭据的本地演示配置
+```
+
+模板、素材、任务与历史业务都由 Java 提供，MySQL 保存状态；Next.js 负责界面与转发。SQL 和 15 张图片随 JAR 打包，Java 启动执行幂等初始化；不会覆盖已有用户密码、模板和个人记录。已有表不会随 schema.sql 修改自动迁移，详见[数据库说明](database/README.md)及[素材来源](demo-assets/SOURCES.md)。
 
 ## 配置
 
-| 配置 | 默认值／位置 | 用途 |
-| --- | --- | --- |
-| FRONTEND_PORT | 3000 | 宿主机前端端口 |
-| JAVA_API_URL | http://backend:8080 | Next.js 服务端 Java 地址，不用 NEXT_PUBLIC 前缀 |
-| MYSQL_DATABASE | assets_creation | 空卷首次创建的库 |
-| MYSQL_USER / MYSQL_PASSWORD | assets_app / 本地演示口令 | Java 数据库账户 |
-| MYSQL_ROOT_PASSWORD | 本地演示口令 | 初始化管理口令，Java 不使用 root |
-| DATABASE_URL / DATABASE_USERNAME / DATABASE_PASSWORD | Compose 从 MYSQL_* 组装 | Java JDBC；本地启动也可直接设置 |
-| STORAGE_ROOT | Compose 为 /app/data | 已用于上传；asset-data 卷保留文件 |
-| SESSION_TIMEOUT | 30m | 会话空闲超时 |
-| SESSION_COOKIE_SECURE | false | 本地 HTTP；HTTPS 设为 true |
-| PROXY_TIMEOUT_MS | 10000 | 单个 Java 请求超时，不是制作耗时 |
-| SIM_CHECK_DELAY_MS | 2000 | 素材检查耗时，非负毫秒 |
-| SIM_GENERATE_DELAY_MS | 8000 | 模拟生成耗时，非负毫秒 |
-| SIM_FINALIZE_DELAY_MS | 2000 | 结果整理耗时，非负毫秒 |
-| SIM_FAIL_STAGE | NONE | NONE／MATERIAL_CHECK／GENERATE／FINALIZE，非法值阻止启动 |
-| SPRING_PROFILES_ACTIVE | 空 | 默认无 smoke 探针，转发验证时使用 smoke |
+| 变量 | 默认值／用途 |
+| --- | --- |
+| FRONTEND_PORT | 3000，宿主机前端端口 |
+| JAVA_API_URL | http://backend:8080，仅 Next.js 服务端使用 |
+| MYSQL_DATABASE | assets_creation，首次空卷初始化库 |
+| MYSQL_USER／MYSQL_PASSWORD | assets_app／公开本地演示口令 |
+| MYSQL_ROOT_PASSWORD | 公开初始化口令，Java 不使用 root |
+| DATABASE_URL／DATABASE_USERNAME／DATABASE_PASSWORD | Compose 从 MYSQL_* 组装 JDBC 配置 |
+| STORAGE_ROOT | Compose 为 /app/data，保存上传与结果 |
+| SESSION_TIMEOUT | 30m，会话空闲过期 |
+| SESSION_COOKIE_SECURE | false，本地 HTTP；HTTPS 改 true |
+| PROXY_TIMEOUT_MS | 10000，单个 HTTP 请求超时，不是任务总耗时 |
+| SIM_CHECK_DELAY_MS | 2000，素材检查耗时，非负毫秒 |
+| SIM_GENERATE_DELAY_MS | 8000，模拟生成耗时，非负毫秒 |
+| SIM_FINALIZE_DELAY_MS | 2000，结果整理耗时，非负毫秒 |
+| SIM_FAIL_STAGE | NONE／MATERIAL_CHECK／GENERATE／FINALIZE |
+| SPRING_PROFILES_ACTIVE | 空；仅转发探针验收使用 smoke |
 
-数据库使用 utf8mb4 和 UTC。演示内网 JDBC 不使用 TLS，真实远程数据库应另行配置。已有卷不会因修改初始化环境密码自动修改账户。Java 使用 `CREATE TABLE IF NOT EXISTS` 和不覆盖已有行的种子写入；修改 schema.sql 不会自动迁移已有表，不需要也不应为升级删除用户数据卷。
+非法模拟枚举或负延迟阻止启动。数据库 utf8mb4、时间 UTC；演示容器内 JDBC 未启用 TLS，远程数据库应单独配置。真实部署需替换公开演示口令并使用 HTTPS；不要把真实配置提交 Git。已有 MySQL 卷的账户口令不会因修改初始化变量自动改变。
 
-## P0 检查
+## 页面与演示
 
-### 完整转发验证
+1. **成功制作**：进入“海岸假日”，登录后选 portrait.png，上传成功再提交；按钮结束提交态，右侧显示任务及 Java 当前步骤，成功后点击预览。默认总延迟约 12 秒，另有排队及处理开销。
+2. **不同数量与多任务**：“旅行明信片”需两张、“创意拼贴”需三张。第一任务受理后点击“开始下一次制作”再提交，上一任务继续；可浏览其他页面，任务按 MySQL 顺序执行，各自状态／错误／结果独立。
+3. **刷新与异常恢复**：制作中刷新“我的作品”，从 Java 恢复所有未完成任务；终态停止该任务轮询，无任务不轮询。查询网络错误保留上次状态，点击“恢复查询”或“刷新记录”恢复，不将任务改成 FAILED。
+4. **用户隔离**：A 制作后退出，再登录 B；B 看不到 A 的素材、记录或结果，重新登录 A 可恢复。用户名密码注册成功自动登录；Java 内存 Session，重启后需重新登录。
+5. **窄屏及键盘**：模板、上传和历史小屏可操作；上传位有独立标签。结果 dialog 支持键盘打开、Escape 关闭并恢复原按钮焦点。
 
-```sh
-docker compose -p assets-creation-p0 -f compose.yaml -f compose.smoke.yaml up --build --abort-on-container-exit --exit-code-from checks
+### 可重复指定失败与调整耗时
+
+先等已有任务全部结束，再在 PowerShell 配置目标阶段并重建 Java：
+
+```powershell
+$env:SIM_FAIL_STAGE = 'GENERATE'
+$env:SIM_CHECK_DELAY_MS = '2000'
+$env:SIM_GENERATE_DELAY_MS = '3000'
+$env:SIM_FINALIZE_DELAY_MS = '2000'
+docker compose up -d --force-recreate --no-deps --wait backend
 ```
 
-该命令构建应用并启用专用 smoke profile，在三服务健康后运行 Node 检查容器，执行 10 项检查：健康、多个 Set-Cookie、会话／CSRF／JSON、multipart 字节、5 MiB 边界、超限 413、图片、上游错误、401／403 区别及 504 超时。检查结束后停止本组服务，保留专用卷。若普通应用已占用 3000，先停止它或修改验收组 FRONTEND_PORT；本命令不会删除默认项目的卷。
+重新登录并创建新任务：检查成功、生成失败，整理显示“未执行”，原因保存在数据库，无成功预览。将 SIM_FAIL_STAGE 分别设为 MATERIAL_CHECK／GENERATE／FINALIZE，即可重复验证三个失败点；没有随机失败。要观察更长的排队和阶段，可设 10000／20000／10000 毫秒。
 
-### 构建和 Java 测试
+每次受理保存配置快照，后续修改只影响新任务；重建会让原会话失效。演示完清除四个临时变量并恢复默认 Java：
+
+```powershell
+Remove-Item Env:SIM_CHECK_DELAY_MS,Env:SIM_GENERATE_DELAY_MS,Env:SIM_FINALIZE_DELAY_MS,Env:SIM_FAIL_STAGE -ErrorAction SilentlyContinue
+docker compose up -d --force-recreate --no-deps --wait backend
+```
+
+正常停止先关闭领取入口，再等待当前工作；启动先把遗留 RUNNING 任务和当前步骤标记 FAILED／SERVICE_RESTARTED，保留失败阶段并说明“服务重启导致制作中断”。QUEUED 按原快照继续，既有成功／失败不变；不自动续跑执行中任务。操作及独立验收命令见[任务说明](docs/tasks.md)。
+
+## 主要 API 与示例
+
+| 接口 | 输入／结果 |
+| --- | --- |
+| GET /api/auth/csrf | 返回 token／headerName，并设置会话 Cookie |
+| POST /api/auth/register、/login | username／password，201／200 UserDto；注册自动登录 |
+| GET /api/auth/me；POST /api/auth/logout | 当前 id／username；退出为 204 |
+| GET /api/templates/categories、/templates、/templates/{id} | 分类、可选 category 筛选、含素材要求的详情 |
+| POST /api/assets | multipart 单字段 file；201 AssetDto，含 id／mimeType／sizeBytes／previewUrl |
+| GET /api/assets/{id}/content | 本人素材真实图片 |
+| POST /api/tasks | templateId／有序 assetIds／UUID requestId；202 TaskDto |
+| GET /api/tasks | page／pageSize／可选 status；本人 items／total 分页 |
+| GET /api/tasks/active、/tasks/{id} | 全部本人未完成任务／含三个步骤的详情 |
+| GET /api/tasks/{id}/result | 仅本人成功任务的图片 |
+| GET /api/health | 就绪及数据库 UP，未就绪返回 503 |
+
+写请求先获取 CSRF 并保留 Cookie，使用返回的 headerName 携带 token；登录／注册／退出后重新获取 token。归属来自 Java 会话，不接受客户端 userId 指定。Cookie 为 HttpOnly／SameSite=Lax；凭据不写浏览器持久存储。完整协议见 [API 契约](docs/api.md)。
+
+可直接执行[完整 API 示例](examples/api-demo.mjs)，在前端容器中用公开 demo_a 登录、上传随包图片、创建并查询任务、读取结果后退出；输出真实 DTO，不打印 Cookie／CSRF／密码。会新增一个演示素材和任务，默认成功耗时约 12 秒。PowerShell：
+
+```powershell
+Get-Content -Raw -Encoding UTF8 examples/api-demo.mjs | docker compose exec -T frontend node --input-type=module
+```
+
+实际创建接口示例（assetIds 必须替换为本次上传返回的 id）：
+
+```json
+{
+  "templateId": "coastal-memory",
+  "assetIds": ["上传接口返回的素材ID"],
+  "requestId": "72c878cf-a8b2-47c3-b115-673efff3f568"
+}
+```
+
+202 的 TaskDto 包含 id、templateId、templateTitle、status、currentStage、steps、createdAt、startedAt、finishedAt、resultUrl、errorCode、errorMessage；每个步骤包含 stage、status、开始／结束时间及错误。等待时阶段和执行时间为 null，后台可能在响应前已开始。状态为 QUEUED／RUNNING／SUCCEEDED／FAILED，阶段依次 MATERIAL_CHECK／GENERATE／FINALIZE；成功才有 resultUrl，失败保留当前阶段及原因，后续步骤保持 PENDING，界面显示“未执行”。查询只读，终态不倒退。
+
+同用户同 requestId 和相同模板／素材顺序返回原任务；同键不同内容为 409／IDEMPOTENCY_CONFLICT。提交结果未知时只手动用原键安全重试，不自动重放 POST。请求错误结构为 `{ "code": "...", "message": "...", "fieldErrors": {} }`；401 未认证、403 CSRF、404 不存在或非本人、413 超大、415 类型不支持，502／504 是代理请求故障。后台制作失败通过成功 GET 的 FAILED TaskDto 表达，不能与请求异常混为一谈。
+
+## 测试、构建与 CI
+
+全部检查可在容器内执行：
 
 ```sh
+# 前端，无需启动数据库。
+docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
+
+# Java 完整单元＋真实 MySQL 集成，测试库与实际后台执行器隔离。
+docker compose -p assets-creation-tests -f compose.yaml -f compose.p1.yaml up -d --wait mysql
+docker compose -p assets-creation-tests -f compose.yaml -f compose.p1.yaml run --rm p1-checks
+docker compose -p assets-creation-tests -f compose.yaml -f compose.p1.yaml down
+
+# 成品构建。
 docker compose build
 ```
 
-前端构建依次执行 `npm ci`、`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build`。Java 通过 `./mvnw -B verify` 执行测试和打包。P0 的 6 项 Java 测试及上述 10 项跨容器 HTTP 检查为历史基础证据；当前完整后端组和前端结果见后文。
+前端执行 npm ci、lint、独立 tsc --noEmit、Vitest 及生产构建；Java 使用 Wrapper verify 和 Spring Boot 打包。完整当前结果为 **Java 102 项，0 失败／错误／跳过；前端 15 文件／76 项通过**。普通 Java 镜像构建没有运行中的数据库，报告 41 执行／57 跳过，不能当作完整集成通过；专用服务和 CI 通过 RUN_DATABASE_TESTS=true 执行全组。
 
-有本地工具的开发者也可在相应目录运行以下命令，评估者不必在宿主机执行：
+GitHub Actions 在 push／pull_request 自动运行独立 Node／Maven job 容器及 MySQL service，显式执行上述检查，只缓存下载，不缓存测试成功。P8 代码提交 `6b2415073bb0d5780d315eab5d24ec9fc8a74163` 的 [实际 CI 全绿](https://github.com/Sheepxj/Assets-Creation/actions/runs/40816662085)；最终交付提交也单独核对，链接随交付消息提供。配置和实际状态区别见 [CI 说明](docs/ci.md)。
 
-```text
-frontend/:
-  npm ci
-  npm run lint
-  npm run typecheck
-  npm test -- --run
-  npm run build
-backend/:
-  ./mvnw -B verify
-```
+P9 重新执行空卷初始化、上传边界、真实任务成功与三种失败、浏览器网络中断及恢复、轮询停止、账户隔离、强制重启、保留卷重建和成套备份恢复。场景、方法与证据范围见 [acceptance.md](docs/acceptance.md)；容器复现见 [containers.md](docs/containers.md)。
 
-P8 已通过前端 15 文件、76 项测试，以及 lint、类型检查和生产构建（P5／P6／P7 当时分别为 49／68／74 项）。只运行前端检查的容器命令如下，不需要 Java／MySQL：
+## 完成程度、限制与投入
 
-```sh
-docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
-```
+原题 R-01～R-14 及用户追加的真实注册登录、幂等、用户隔离和队列重启设计已完成；未发现待补的原题必需功能。交付清单不包含付费服务、真实 AI、视频、支付、模板后台、取消／重试失败任务或公网部署。
 
-覆盖 Cookie／CSRF、身份和旧响应隔离、上传竞争、结果未知时原键重试、多任务／超时隔离、跨首屏恢复、终态同步、无任务停止轮询、筛选分页及预览。P8 补充生产代理提前返回 413 后关闭连接、多 Cookie 及响应头过滤回归；GitHub Actions 已配置并实际通过，详情见 [CI 说明](docs/ci.md)。
+已知限制：单 Java 实例；中断任务明确失败而非续跑；Session 重启失效；数据库／文件不是分布式事务，崩溃可能留孤立文件，无自动清理或配额；未提交表单不跨刷新保留；无任务时不自动发现其他浏览器新任务，可手动刷新；查询错误暂停后需明确操作恢复。已有表结构需另行迁移。未验证公网生产部署、其他系统／CPU 架构的运行效果，不宣称生产高可用。
 
-## P1 数据与真实数据库验证
+实际设计首提交为 2026-10-28 15:28（Asia/Shanghai），开发与验收跨至 2026-10-29；中间有夜间停顿。没有完整人工计时记录，不把 Git 时间跨度或“一天预算”当成精确工时。阶段记录保留实际自动执行窗口，P8 累计约 50 分钟；P9 起止与交付时间见[最终验收](docs/acceptance.md)。
 
-六张表为 users、templates、assets、tasks、task_assets、task_steps。已有 P0 数据卷可直接升级，空库也会自动初始化。提供三个分类、每类两个模板，覆盖 1／2／3 张图片要求；全部接受 JPEG／PNG、单张 5 MiB。
+部署前固定已验证版本并备份数据库和文件卷；回滚检出上一已验证提交重新构建启动、保留卷，代码回退不等于数据回退。实际执行过的备份／恢复命令见[运维说明](docs/operations.md)。
 
-本地演示账号：`demo_a`、`demo_b`，口令均为 `Demo123456!`。数据库保存不同随机盐的 BCrypt cost 10 哈希；P2 已支持这两个账号登录及独立注册新账号。
+## AI 工作流与复用来源
 
-15 张图片为 Java 2D 原创几何示例，全部随源码和 JAR 交付，不依赖外部图片站。参见[素材来源及生成方式](demo-assets/SOURCES.md)。成功结果仍为预置模拟图片，不真实处理用户上传内容。
+使用 AI 辅助开发：先读取原题，映射 R-01～R-14，与用户确认一天预算、传统注册登录及单实例方案；固化设计与 P0～P9 计划，再按阶段生成／修改代码，在隔离容器中验证并同步 Git。私有聊天、账号和提示词不作为交付材料。
 
-在独立 MySQL 项目运行全部后端检查：
+具体例子：生产上传验收两次复现超限 multipart 后预览 ECONNRESET，定位为提前 413 后连接仍被复用；代理显式关闭该连接并新增回归测试，再重跑真实上传 13 项、代理 10 项及生产构建。P4 关闭竞争与 P6 迟到状态问题也有先复现、后修复的记录；不是只生成代码后勾选计划。
 
-```sh
-docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml up -d --wait mysql
-docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm p1-checks
-docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
-```
-
-P1 阶段 21 项、P2 阶段 41 项、P3 阶段 62 项、首次 P4 为 91 项，P4 源码复核后为 98 项、P7 为 101 项。P8 当前完整组为 **102 项全部通过，0 失败、0 错误、0 跳过**；包含阻塞时受理、未提交任务不可领取、终态查询不写状态，以及应用尚未就绪时的健康响应。
-
-普通后端镜像构建没有运行中的数据库，不执行数据库集成组；当前报告 41 执行／57 跳过，禁用参数化测试时按方法计数。须用上述专用服务设置 RUN_DATABASE_TESTS=true 才得到完整 102 项结果，不能把 skip 当通过。测试源码只读，Maven 缓存和输出均在专用卷内；p1-checks 运行全部后端测试，不限于历史 P1。测试项目只启动 MySQL，不能让实际后台执行器连接该库；HTTP 验证使用另一个 Compose 项目，详见[任务说明](docs/tasks.md)。
-
-已额外验证保留数据卷重建 MySQL／Java，个人记录和全部种子保持不变；验证夹具仅用于专用库，未修改默认开发账号或任务，详见阶段记录。
-
-## P2 注册登录与会话
-
-Java 已提供注册、登录、当前用户和退出接口；注册成功自动登录。先 GET `/api/auth/csrf` 保留 Cookie，再用返回的 Header／Token 发送注册或登录请求；成功后重新获取 Token。GET `/api/auth/me` 返回 id／username；带新 Token 的 POST `/api/auth/logout` 返回 204，并清理 Session、上下文、CSRF 和 Cookie。
-
-用户名去首尾空白、转小写，3～32 位英文字母／数字／下划线；密码至少 8 个 Unicode 码点、UTF-8 最多 72 字节，保持原始内容、不截断。重名 409，错误凭据 401／BAD_CREDENTIALS，会话无效 401／UNAUTHENTICATED，前端应区分二者。
-
-Session Cookie 为 HttpOnly／SameSite=Lax，登录轮换 ID；30 分钟空闲过期，仅在 Java 内存，重启后重新登录。已实测会话配置 1800 秒、退出撤销、旧 Cookie 失效及重启后账号仍能重新登录。认证主体只含用户身份，另保存普通权限及 CSRF Token，不含密码／哈希。
-
-P2 阶段通过 **41 项后端测试、10 项 Next.js→Java HTTP 检查和2项重启检查**。包括并发重名、Unicode 密码边界、CSRF、账号切换、用户隔离和显式认证上下文保存。
-
-复现命令、专用测试账号清理、协议及归属助手见[认证说明](docs/authentication.md)。P5 已提供登录／注册页面、确认密码、安全 returnTo、身份恢复及切换清理；网络异常保留已知身份并提供重新确认，错误密码不会退出旧账户。
-
-## P3 模板、上传及预览
-
-Java 从 MySQL 提供分类、列表、筛选和详情；六个封面可公开读取。登录后以 multipart 单字段 file 上传真实 JPEG／PNG，最大 5 MiB，同时检查实际格式、可解码性及 4000 万像素上限。返回服务端素材 ID 和本人预览地址，文件保存到数据卷，元数据保存到 MySQL。
-
-本轮通过 **62 项后端测试、13 项实际 HTTP 检查及 2 项保留卷重建检查**。真实 Next.js→Java 路径覆盖精确 5 MiB、超限、伪装／损坏／空图片、Cookie／CSRF、用户隔离；Java 容器重建后重新登录，四份素材均可读取且哈希不变。
-
-完整接口、错误码、存储故障边界、替换／移除语义和容器复现命令见[上传说明](docs/uploads.md)。专用检查读取 demo-assets 内的真实图片，证据快照仅写入忽略的 .local；验证组的素材留在专用卷，不清理默认开发数据。
-
-P3 不提供删除素材 API。前端替换／移除仅更新表单引用；孤立文件没有自动清理。文件系统与数据库不是分布式事务，崩溃或提交结果不确定时可能出现未关联文件或缺文件记录，详见阶段记录。
-
-## 接口与安全
-
-请求、响应、枚举、空值、分页、认证和错误见 [API 契约](docs/api.md)。Java `ApiContracts.java` 与前端 `contracts.ts` 保存一致字段。
-
-当前公开健康、CSRF、注册登录和模板／封面 GET；上传、任务、历史和本人图片要求身份。Cookie 使用 HttpOnly、SameSite=Lax，写请求检查 CSRF；归属来自服务端会话，对其他用户的资源返回 404。同源转发连接失败／超时返回 502／504，不能把它们当作后台制作失败。
-
-## P4 制作、模拟与重启
-
-提交后短事务创建 QUEUED 任务、三步记录、有序素材关联及配置快照，返回 202；同用户同 requestId 幂等，相同键不同模板／素材顺序为 409。单后台执行器按 MySQL 创建顺序领取，依次执行素材检查 → 模拟生成 → 结果整理。各阶段持久化状态、时间和原因，延迟／文件操作在事务外；最后步骤与任务成功同事务提交。
-
-`GET /api/tasks` 提供本人分页历史和状态筛选；`/api/tasks/active` 返回全部未结束任务；`/api/tasks/{id}` 提供三个步骤；`/result` 仅允许本人成功任务读取。查询不执行制作，关闭客户端也不取消任务。结果为仓库预置模拟图片的任务专属副本。
-
-成功默认使用 NONE 与 2000／8000／2000 毫秒。指定失败设置 SIM_FAIL_STAGE 为三个阶段之一，调整相应 SIM_*_DELAY_MS 后重建后端，再重新登录并创建新任务。先等已有任务结束再切换；后续环境变化不改变旧排队任务的配置。
-
-正常关闭先停止领取、允许当前任务在窗口内完成；要完整观察可用 `docker compose stop -t 25 backend`。启动时遗留 RUNNING 与执行中步骤变成 FAILED／SERVICE_RESTARTED，原因“服务重启导致制作中断”；QUEUED 继续、终态不变。不续跑执行中任务，不支持多后端共同消费。
-
-首次 P4 通过 91 项后端测试及完整 HTTP 生命周期验证；源码复核修正了关闭竞争，当时为 98 项。P7 完整组为 101 项，P8 为 102 项。详细缺陷复现、19 项源码映射和历史 HTTP 证据见[P4 源码复核](docs/p4-source-audit.md)，自动化矩阵见[P7 验证](docs/p7-verification.md)，当前联调见[P8 验证](docs/p8-verification.md)，复现与边界见[任务说明](docs/tasks.md)。
-
-## P5～P7 前端、回归与后续边界
-
-- P0～P7 已完成，M1 后端闭环、M2 浏览器闭环、P6 状态专项与 P7 自动化回归均有证据，见 [P5](docs/p5-verification.md)、[P6](docs/p6-verification.md)、[P7 记录](docs/p7-verification.md)。
-- 每个未完成任务独立查询；失败请求保留任务数据并暂停，提供恢复操作；详情、近期及分页发现的终态统一同步历史和数量，迟到旧阶段不能倒退。终态或无任务时不定时轮询，刷新从 Java 恢复。
-- P6 修复近期查询先发现终态时漏刷新历史、迟到阶段倒退及筛选总数缩小时页码不可达；当时新增测试先在 P5 旧代码复现相关缺陷，再验证修复。
-- P7 对 14 个 BE／11 个 FE 场景逐项核对，测试先卸载／清缓存再还原假时钟；Worker 线程、JDBC 活动连接及四个连接池关闭均有检查。测试数据库最终仅保留种子，无任务或素材残留。
-- P8 已完成 CI、冷构建及容器持久化联调，剩余 P9 最终全需求验收与提交材料；本站无待处理任务时，不自动发现其他浏览器新增任务，可手动刷新。
-- P0 探针不替代真实业务闭环；重启中断已由 P4 实测，不支持执行中自动续跑。
-- 已按[参考布局](docs/reference-ui.md)实现深色模板网格、制作／记录双栏、窄屏单栏及键盘预览，优先基本可用性。
-- 未提交表单不跨刷新保留；已受理任务由 Java 恢复。替换／移除只清表单引用，无孤立文件自动清理。未知提交保留原 requestId 供手动安全重试，不自动重放写请求。
-
-## 基本部署与回滚
-
-固定 Git 提交并配置环境，执行 `docker compose up --build -d --wait`，核对健康状态和日志。更新前备份数据库及文件数据卷并记录当前提交。
-
-回滚使用上一已验证提交重新构建启动，保留卷。P1 初始建表脚本不修改已存在表；后续数据库变更需单独评估，代码回退不等于数据回退。实际验证版本写入阶段记录。
-
-## AI 工作流与来源
-
-使用 AI 辅助：读取原题并映射 R-01～R-14，与用户确认范围及边界，编写设计和计划，逐阶段生成代码，在容器验证后修复问题，再同步 Git。P0 的实际检查和修正记录见阶段文档，不提交私人聊天或账号信息。
-
-工程代码依照设计编写。Maven Wrapper 由 Apache 官方插件生成并保留许可头；依赖及镜像来自官方仓库。参考截图只用于观察，不作为项目素材分发；P1 自备素材由项目内 Java 2D 生成器制作，来源和复用范围已记录。实际投入按阶段记录，不将估计当作实耗。
+业务代码按本项目方案编写；主要复用 Next.js、React、Spring Boot、MyBatis 等开源依赖及 Apache 官方 Maven Wrapper 脚本，未引入第三方业务系统或 UI 模板。15 张示例图片由项目 Java 2D 生成器原创绘制，可随项目分发，SHA-256 清单随附；参考截图只用于观察布局，不分发其品牌素材。详见[素材来源](demo-assets/SOURCES.md)和[参考界面记录](docs/reference-ui.md)。

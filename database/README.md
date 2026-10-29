@@ -65,6 +65,8 @@ docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml run --rm
 docker compose -p assets-creation-p1 -f compose.yaml -f compose.p1.yaml down
 ```
 
-该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 运行当前全部后端测试，包含 PersistenceIntegrationTest、AuthIntegrationTest、AssetIntegrationTest、TaskIntegrationTest。默认镜像构建没有数据库服务，明确跳过这四组并执行其他测试；不能把跳过说成通过。测试资源关闭本上下文的自动后台领取，测试库还必须与任何实际后端实例隔离，不能让它们消费相同队列。测试存储在容器临时目录，避免向只读源码挂载写入。后续 CI 需启用真实数据库测试开关。
+该配置用只读源码挂载、独立 Maven 缓存与构建输出卷，RUN_DATABASE_TESTS=true 运行当前全部后端测试，包含 PersistenceIntegrationTest、AuthIntegrationTest、AssetIntegrationTest、TaskIntegrationTest。默认镜像构建没有数据库服务，明确跳过这四组并执行其他测试；不能把跳过说成通过。测试资源关闭本上下文的自动后台领取，测试库还必须与任何实际后端实例隔离，不能让它们消费相同队列。测试存储在容器临时目录，避免向只读源码挂载写入。CI 已启用真实 MySQL 服务与该开关，当前完整组 102 项通过，见 [CI](../docs/ci.md)。
+
+最终 P9 另实际验证了数据库＋文件成套备份导入新卷，完整记录及计数一致；操作命令见[运维说明](../docs/operations.md)，不能只备份 SQL 或用代码回滚替代数据回滚。
 
 `down` 保留数据卷，不删除默认开发项目的数据。实际执行结果及重启保持验证见 [P1 验证记录](../docs/p1-verification.md)。

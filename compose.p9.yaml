@@ -1,0 +1,10 @@
+# Acceptance only: log method/path/status, never Cookie, headers or request bodies.
+services:
+  backend:
+    environment:
+      SERVER_TOMCAT_ACCESSLOG_ENABLED: "true"
+      SERVER_TOMCAT_ACCESSLOG_BUFFERED: "false"
+      SERVER_TOMCAT_ACCESSLOG_DIRECTORY: /tmp/p9-access
+      SERVER_TOMCAT_ACCESSLOG_PREFIX: api
+      SERVER_TOMCAT_ACCESSLOG_SUFFIX: .log
+      SERVER_TOMCAT_ACCESSLOG_PATTERN: "%m %U %s"
