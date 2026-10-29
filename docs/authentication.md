@@ -63,7 +63,7 @@ docker compose -p assets-creation-p2 -f compose.yaml -f compose.p1.yaml up -d --
 docker compose -p assets-creation-p2 -f compose.yaml -f compose.p1.yaml run --rm p1-checks
 ```
 
-P2 当时为 41 项全部通过：6 基础、2 素材、5 密码规则、13 持久层、15 认证集成。P7 当前完整后端组为 101 项；普通镜像不执行数据库集成，须使用专用服务设置 RUN_DATABASE_TESTS=true 才运行完整组。参数化测试禁用时按方法计数，不把跳过当作通过。当前结果见 [P7 验证](p7-verification.md)。
+P2 当时为 41 项全部通过：6 基础、2 素材、5 密码规则、13 持久层、15 认证集成。P7 为 101 项，P8 当前完整后端组为 102 项；普通镜像不执行数据库集成，须使用专用服务设置 RUN_DATABASE_TESTS=true 才运行完整组。参数化测试禁用时按方法计数，不把跳过当作通过。自动化矩阵见 [P7](p7-verification.md)，实际 CI／容器重建及账号恢复见 [P8 验证](p8-verification.md)。
 
 实际 Next.js → Java HTTP 验证，在 PowerShell 中设置隔离端口：
 

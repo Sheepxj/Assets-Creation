@@ -45,7 +45,7 @@ returnTo 只接受已知站内页面 `/`、`/tasks`、`/templates/{id}`，保留
 
 详情、近期或分页查询发现终态后，统一更新详情缓存、失效相关历史页和近期记录，未完成数归零后无定时请求。Registry 拒绝终态及非终态阶段倒退，避免旧快照覆盖。历史以 Java 的 12 条／页分页并支持状态筛选；筛选重置页码，任务完成导致集合缩小时回到最后可用页。切换历史页不停止其他任务。
 
-结果通过本人受保护地址预览；原生 dialog 支持标题、关闭和键盘操作，关闭恢复焦点。图片错误只提示预览失败，不修改任务成功状态。P6 完整专项及 P7 回归已通过；当前任务相关 6 文件共 26 项，另有 Creator 表单、身份、上传及请求测试。真实浏览器证据在 P6，当前完整回归见 [P7 记录](p7-verification.md)。P8～P9 后续检查见计划。
+结果通过本人受保护地址预览；原生 dialog 支持标题、关闭和键盘操作，关闭恢复焦点。图片错误只提示预览失败，不修改任务成功状态。P6 完整专项及 P7 回归已通过；当前任务相关 6 文件共 26 项，另有 Creator 表单、身份、上传及请求测试。真实浏览器证据在 P6，完整回归矩阵见 [P7 记录](p7-verification.md)；P8 生产联调及重建复查见 [P8 记录](p8-verification.md)，P9 待执行。
 
 ## 布局与验证入口
 
@@ -57,4 +57,4 @@ returnTo 只接受已知站内页面 `/`、`/tasks`、`/templates/{id}`，保留
 docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
 ```
 
-检查镜像内执行 lint、tsc 及 Vitest（当前 74 项），不安装宿主机依赖。`docker compose build frontend` 还执行以上检查和 Next.js 生产构建。测试为每次 render 建立独立生产 Providers，teardown 先卸载再清 QueryClient、最后恢复时钟与 DOM shim；资源审计确认订阅、传输及 GC 计时器回收。完整来源和结果见 [P5](p5-verification.md)、[P6](p6-verification.md)、[P7 验证记录](p7-verification.md)。
+检查镜像内执行 lint、tsc 及 Vitest（当前 15 文件／76 项），不安装宿主机依赖。`docker compose build frontend` 还执行以上检查和 Next.js 生产构建。测试为每次 render 建立独立生产 Providers，teardown 先卸载再清 QueryClient、最后恢复时钟与 DOM shim；资源审计确认订阅、传输及 GC 计时器回收。P8 新增代理 413 连接关闭及多 Cookie／头过滤测试；生产上传、任务、超时和浏览器重建验证见 [P8](p8-verification.md)。既有页面状态矩阵见 [P5](p5-verification.md)、[P6](p6-verification.md)、[P7 验证记录](p7-verification.md)。

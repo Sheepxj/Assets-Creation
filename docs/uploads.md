@@ -65,7 +65,9 @@ P4 创建任务已检查模板存在、素材数量准确、ID 不重复、当�
 
 ## 容器复现
 
-完整后端测试沿用 `compose.p1.yaml` 的通用 p1-checks 服务，P3 当时 62 项、P4 复核 98 项，P7 当前为 101 项，见 [P7 验证](p7-verification.md)。须设置该服务中的 RUN_DATABASE_TESTS=true 才包含真实数据库集成，且测试库不能与正在运行的后台执行器共用。
+完整后端测试沿用 `compose.p1.yaml` 的通用 p1-checks 服务，P3 当时 62 项、P4 复核 98 项、P7 为 101 项，P8 当前为 102 项，见 [P7](p7-verification.md)与 [P8 验证](p8-verification.md)。须设置该服务中的 RUN_DATABASE_TESTS=true 才包含真实数据库集成，且测试库不能与正在运行的后台执行器共用。
+
+P8 生产联调修复超大 multipart 提前返回 413 后的连接复用问题：Next.js 在保留结构化错误的同时显式关闭该连接，避免后续预览 ECONNRESET；未重试 POST 或绕过 Java 校验。真实上传 13 项及保留卷重建 2 项重新通过。
 
 PowerShell 在仓库根目录执行下列 HTTP 检查；使用专用项目和 3001 端口，避免影响默认 3000 入口：
 

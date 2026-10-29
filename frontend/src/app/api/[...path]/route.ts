@@ -39,6 +39,9 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
     responseHeaders.delete("set-cookie");
     for (const cookie of response.headers.getSetCookie()) responseHeaders.append("set-cookie", cookie);
     responseHeaders.set("cache-control", "no-store");
+    // An early multipart rejection can cancel the still-uploading incoming stream.
+    // Close this HTTP/1 connection explicitly rather than advertise a reusable socket.
+    if (response.status === 413) responseHeaders.set("connection", "close");
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
   } catch {
     const timedOut = timeout.aborted;

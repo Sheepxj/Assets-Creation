@@ -1,0 +1,15 @@
+services:
+  p8-checks:
+    image: node:22.23.4-bookworm-slim
+    environment:
+      BASE_URL: http://frontend:3000
+      P8_MODE: ${P8_MODE:-prepare}
+      P8_EVIDENCE_FILE: /evidence/p8-persistence.json
+    volumes:
+      - ./scripts:/checks:ro
+      - ./demo-assets:/demo:ro
+      - ./.local:/evidence
+    command: ["node", "/checks/smoke-p8.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy

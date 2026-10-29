@@ -1,6 +1,8 @@
 # 容器化 CI
 
-配置为 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，监听 push、pull_request，并允许 workflow_dispatch。配置存在不代表运行通过；本阶段实际运行结果在 P8 验证记录中补齐，也可查看[仓库 Actions](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml)。
+配置为 [.github/workflows/ci.yml](../.github/workflows/ci.yml)，监听 push、pull_request，并允许 workflow_dispatch。配置存在不代表运行通过；实际记录见 [P8 验证](p8-verification.md)，也可查看[仓库 Actions](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml)。
+
+已实际核对提交 `330a4624354c64f9c1c23a624444f8f4923105e2` 的 [run 40813345750](https://github.com/Sheepxj/Assets-Creation/actions/runs/40813345750)：两个 job 全部成功，Java 102 项无失败／错误／跳过，前端当时 14 文件／74 项及 lint／tsc／生产构建通过。首次两个下载缓存均未命中，运行后正常保存，证明不依赖已有缓存。P8 代理修复另增两项前端测试，本地当前为 15 文件／76 项；最终推送后按最新提交 SHA 再核对流水线，交付消息提供对应链接，不用旧提交的成功替代新提交检查。
 
 两个 job 在 Ubuntu 24.04 runner 的独立容器中执行：
 
