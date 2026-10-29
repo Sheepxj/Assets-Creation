@@ -4,18 +4,18 @@
 
 ## 验收版本
 
-后续修复版本位于 `master`，包含审查发现的三个前端缺陷修复，详见[修复记录](audit-bugfix-verification.md)。下述标签和原 ZIP 保留 P9 历史基线，不含后续修复。验收修复版请 `git fetch origin` 后按修复消息给出的完整 SHA 检出，或使用 `origin/master`；重新构建启动命令不变。
+当前修订标签：`delivery-2026-10-29-v2`，包含审查发现的三个前端缺陷修复，详见[修复记录](audit-bugfix-verification.md)。修复提交为 `d12d2dc041a8dff134321232afa71cdebb3c7435`，其[实际 CI](https://github.com/Sheepxj/Assets-Creation/actions/runs/40877435928)已成功；修订交付提交在此基础上更新文档，完整 SHA 和该提交的实际 CI 链接在交付清单及交付消息中提供。
 
-固定标签：`delivery-2026-10-29`。该标签在最终文档完成后创建，指向最终交付提交；完整 commit 与该提交实际 CI 链接在交付消息一并提供。下载仓库时选择该标签，或按完整 SHA 检出，避免把后续 master 更新混入验收。
+原标签 `delivery-2026-10-29` 仍指向 P9 历史基线 `b667052`，未移动或覆盖。旧包 `assets-creation-b667052.zip` 不含三个修复，不能用来验收当前修订版。下载仓库时选择 v2 标签，或按完整 SHA 检出，避免把后续 master 更新混入验收。
 
 ```sh
 git fetch origin --tags
-git rev-parse 'delivery-2026-10-29^{commit}'
-git checkout delivery-2026-10-29
+git rev-parse 'delivery-2026-10-29-v2^{commit}'
+git checkout delivery-2026-10-29-v2
 docker compose up --build
 ```
 
-最终 ZIP 为此提交的 `git archive --format=zip --prefix=assets-creation/` 产物，附完整 SHA／CI 链接及 SHA-256 校验文件。它包含隐藏的 .github 和 .mvn，不含 .git 历史；解压后进入 assets-creation 目录执行标准 Compose 命令。没有单独生成另一套裁剪业务源码。
+当前 ZIP 为 v2 标签提交的 `git archive --format=zip --prefix=assets-creation/` 产物，命名为 `assets-creation-<短SHA>.zip`。本地交付目录为 `.local/delivery/`，`DELIVERY.txt` 列出本次应交的包名、完整 SHA、CI 链接和验证范围，`SHA256SUMS.txt` 仅列出当前包的 SHA-256。旧包保留但不再列为当前提交材料。ZIP 包含隐藏的 .github 和 .mvn，不含 .git 历史；解压后进入 assets-creation 目录执行标准 Compose 命令。没有单独生成另一套裁剪业务源码。
 
 ## 应提交的材料
 
@@ -40,7 +40,7 @@ docker compose up --build
 2. 审查 TaskService→TaskStateStore／TaskWorker→TaskExecutionService／TaskStages，以及 MyBatis 条件更新和数据库约束。
 3. 审查前端 ApiClient／SessionStore、UploadSession／Submission、TaskRegistry／TasksProvider，关注独立任务、未知提交、身份和迟到响应。
 4. 标准 Compose 启动，使用 demo_a／demo_b 或注册，走成功、多任务、刷新和预览；按 README 配置三个失败阶段和耗时。
-5. 在检查容器运行 Java 102／前端 76 项回归，查看验收提交对应的实际 CI，不将跳过集成测试或旧提交的成功当作当前全部通过。
+5. 在检查容器运行 Java 102／前端 89 项回归，查看验收提交对应的实际 CI，不将跳过集成测试或旧提交的成功当作当前全部通过。
 
 ## 不提交的内容
 

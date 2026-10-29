@@ -6,9 +6,9 @@
 
 [![CI](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml/badge.svg)](https://github.com/Sheepxj/Assets-Creation/actions/workflows/ci.yml)
 
-仓库：[Sheepxj/Assets-Creation](https://github.com/Sheepxj/Assets-Creation)。验收版本固定为标签 `delivery-2026-10-29`，可用 `git rev-parse 'delivery-2026-10-29^{commit}'` 取得完整 commit；交付消息同时列出完整 SHA 和该提交的 CI 链接。源码 ZIP 由这个提交的 Git archive 生成，不含运行数据或依赖缓存。
+仓库：[Sheepxj/Assets-Creation](https://github.com/Sheepxj/Assets-Creation)。当前验收版本为修订标签 `delivery-2026-10-29-v2`，可用 `git rev-parse 'delivery-2026-10-29-v2^{commit}'` 取得完整 commit；交付消息同时列出完整 SHA 和该提交的 CI 链接。源码 ZIP 由这个提交的 Git archive 生成，不含运行数据或依赖缓存。
 
-2026-10-29 后续审查修复了跨标签页身份同步、记录错误与空状态混显、近期任务时间排序三个问题。修复位于当前 `master`，原交付标签和 ZIP 保留历史版本；使用修复版请检出 `origin/master` 或修复提交的完整 SHA，验证范围见[修复记录](docs/audit-bugfix-verification.md)。
+2026-10-29 后续审查修复了跨标签页身份同步、记录错误与空状态混显、近期任务时间排序三个问题，修订交付已包含这些修复。原标签 `delivery-2026-10-29` 及旧 ZIP 保留历史版本；当前交付入口见[交付索引](docs/delivery.md)，验证范围见[修复记录](docs/audit-bugfix-verification.md)。
 
 ## 快速启动
 
@@ -178,7 +178,7 @@ docker compose -p assets-creation-tests -f compose.yaml -f compose.p1.yaml down
 docker compose build
 ```
 
-前端执行 npm ci、lint、独立 tsc --noEmit、Vitest 及生产构建；Java 使用 Wrapper verify 和 Spring Boot 打包。完整当前结果为 **Java 102 项，0 失败／错误／跳过；前端 15 文件／76 项通过**。普通 Java 镜像构建没有运行中的数据库，报告 41 执行／57 跳过，不能当作完整集成通过；专用服务和 CI 通过 RUN_DATABASE_TESTS=true 执行全组。
+前端执行 npm ci、lint、独立 tsc --noEmit、Vitest 及生产构建；Java 使用 Wrapper verify 和 Spring Boot 打包。完整当前结果为 **Java 102 项，0 失败／错误／跳过；前端 16 文件／89 项通过**。普通 Java 镜像构建没有运行中的数据库，报告 41 执行／57 跳过，不能当作完整集成通过；专用服务和 CI 通过 RUN_DATABASE_TESTS=true 执行全组。
 
 GitHub Actions 在 push／pull_request 自动运行独立 Node／Maven job 容器及 MySQL service，显式执行上述检查，只缓存下载，不缓存测试成功。P8 代码提交 `6b2415073bb0d5780d315eab5d24ec9fc8a74163` 的 [实际 CI 全绿](https://github.com/Sheepxj/Assets-Creation/actions/runs/40816662085)；最终交付提交也单独核对，链接随交付消息提供。配置和实际状态区别见 [CI 说明](docs/ci.md)。
 

@@ -61,4 +61,4 @@ returnTo 只接受已知站内页面 `/`、`/tasks`、`/templates/{id}`，保留
 docker compose -p assets-creation-frontend-checks -f compose.yaml -f compose.frontend.yaml run --build --rm frontend-checks
 ```
 
-检查镜像内执行 lint、tsc 及 Vitest（当前 15 文件／76 项），不安装宿主机依赖。`docker compose build frontend` 还执行以上检查和 Next.js 生产构建。测试为每次 render 建立独立生产 Providers，teardown 先卸载再清 QueryClient、最后恢复时钟与 DOM shim；资源审计确认订阅、传输及 GC 计时器回收。P8 新增代理 413 连接关闭及多 Cookie／头过滤测试；生产上传、任务、超时和浏览器重建验证见 [P8](p8-verification.md)。既有页面状态矩阵见 [P5](p5-verification.md)、[P6](p6-verification.md)、[P7 验证记录](p7-verification.md)。
+检查镜像内执行 lint、tsc 及 Vitest（当前 16 文件／89 项），不安装宿主机依赖。`docker compose build frontend` 还执行以上检查和 Next.js 生产构建。测试为每次 render 建立独立生产 Providers，teardown 先卸载再清 QueryClient、最后恢复时钟与 DOM shim；资源审计确认订阅、传输及 GC 计时器回收。P8 新增代理 413 连接关闭及多 Cookie／头过滤测试；后续身份同步、错误空态及时间精度回归见[修复记录](audit-bugfix-verification.md)。生产上传、任务、超时和浏览器重建验证见 [P8](p8-verification.md)。既有页面状态矩阵见 [P5](p5-verification.md)、[P6](p6-verification.md)、[P7 验证记录](p7-verification.md)。

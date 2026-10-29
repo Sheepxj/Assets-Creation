@@ -8,7 +8,7 @@
 
 ```powershell
 git fetch origin --tags
-git checkout delivery-2026-10-29
+git checkout delivery-2026-10-29-v2
 docker compose config --quiet
 docker compose up --build -d --wait
 docker compose ps

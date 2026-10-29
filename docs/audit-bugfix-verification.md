@@ -2,6 +2,8 @@
 
 日期：2026-10-29（Asia/Shanghai）。原审查基线为 `b667052e383c4dc8d43f559856afd869cd5e54a8`。本记录说明后续修复，原P9标签和ZIP保留历史版本；修复提交及实际CI链接随修复交付消息提供。
 
+修复提交为 `d12d2dc041a8dff134321232afa71cdebb3c7435`，对应[CI 40877435928](https://github.com/Sheepxj/Assets-Creation/actions/runs/40877435928)成功。当前交付改用 `delivery-2026-10-29-v2`，包含该修复和更新后的交付文档；当前包与校验方式见[交付索引](delivery.md)。
+
 ## 修复范围
 
 | 缺陷 | 修复 | 证据 |

@@ -5,7 +5,7 @@
 - 项目仓库：https://github.com/Sheepxj/Assets-Creation
 - 需求来源：项目根目录的《题目说明.md》，本文不替代原始验收要求。
 - 时间目标：最多一天，优先完整、可靠地满足笔试要求，作品级视觉打磨后置。
-- 当前交付阶段：P0～P9 已完成，Java 102／前端 76 项、Java API／浏览器闭环、状态专项、冷构建／持久化、实际 CI 和最终 18 项验收均有依据。R-01～14、限制与交付材料见最终 acceptance.md／delivery.md，历史阶段状态保留在各记录中。
+- 当前交付阶段：P0～P9 及审查后三个缺陷修复已完成，Java 102／前端 89 项；原18项验收保留P9历史证据，修复回归及真实双标签页验证见 audit-bugfix-verification.md。当前交付标签为 delivery-2026-10-29-v2；R-01～14、限制与交付材料见 acceptance.md／delivery.md，历史阶段状态保留在各记录中。
 
 ## 1. 目标与范围
 
